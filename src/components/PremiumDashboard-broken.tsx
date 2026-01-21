@@ -1,0 +1,372 @@
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { format } from 'date-fns';
+import { DollarSign, Calendar, AlertCircle, TrendingUp, Eye } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { RecordPremiumPaymentModal } from './premium/RecordPremiumPaymentModal';
+
+interface PremiumDashboardProps {
+  trustId: string;
+}
+
+interface Policy {
+  id: string;
+  policy_number: string;
+  insurance_company: string;
+  death_benefit: number;
+  cash_value: number;
+  monthly_premium: number;
+  premium_mode: string;
+  next_premium_due: string | null;
+}
+
+interface UpcomingPremium {
+  policy_id: string;
+  policy_number: string;
+  insurance_company: string;
+  premium_amount: number;
+  due_date: string;
+  days_until_due: number;
+}
+
+interface PaymentHistory {
+  id: string;
+  policy_number: string;
+  payment_date: string;
+  amount: number;
+  payment_method: string;
+  reference_number: string;
+}
+
+interface FundSufficiency {
+  total_liquid_assets: number;
+  annual_premium_obligation: number;
+  months_covered: number;
+  is_sufficient: boolean;
+  shortfall_amount: number | null;
+}
+
+export function PremiumDashboard() {
+  const [loading, setLoading] = useState(true);
+  const [policies, setPolicies] = useState<Policy[]>([]);
+  const [upcomingPremiums, setUpcomingPremiums] = useState<UpcomingPremium[]>([]);
+  const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
+  const [fundSufficiency, setFundSufficiency] = useState<FundSufficiency | null>(null);
+  const [trust, setTrust] = useState<any>(null);
+
+  // Fetch trust details
+  const fetchTrust = async () => {
+    const { data, error } = await supabase
+      .from('trusts')
+      .select('*')
+      .eq('id', trustId)
+      .single();
+
+    if (data) setTrust(data);
+  };
+
+  // Fetch insurance policies
+  const fetchPolicies = async () => {
+    const { data, error } = await supabase
+      .from('insurance_policies')
+      .select('*')
+      .eq('trust_id', trustId)
+      .order('created_at', { ascending: false });
+
+    if (data) setPolicies(data);
+  };
+
+  // Fetch upcoming premiums
+  const fetchUpcomingPremiums = async () => {
+    const { data, error } = await supabase
+      .from('upcoming_premiums')
+      .select('*')
+      .eq('trust_id', trustId)
+      .order('due_date', { ascending: true });
+
+    if (data) setUpcomingPremiums(data);
+  };
+
+  // Fetch payment history
+  const fetchPaymentHistory = async () => {
+    const { data, error } = await supabase
+      .from('premium_payment_history')
+      .select('*')
+      .eq('trust_id', trustId)
+      .order('payment_date', { ascending: false })
+      .limit(10);
+
+    if (data) setPaymentHistory(data);
+  };
+
+  // Check fund sufficiency
+  const checkFundSufficiency = async () => {
+    const { data, error } = await supabase.functions.invoke('calculate-funds-sufficiency', {
+      body: { trust_id: trustId }
+    });
+
+    if (data) setFundSufficiency(data);
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      await Promise.all([
+        fetchTrust(),
+        fetchPolicies(),
+        fetchUpcomingPremiums(),
+        fetchPaymentHistory(),
+        checkFundSufficiency()
+      ]);
+      setLoading(false);
+    };
+
+    fetchData();
+  }, [trustId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Fund Sufficiency Alert */}
+      {fundSufficiency && !fundSufficiency.is_sufficient && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Trust has insufficient funds to cover premium obligations. 
+            Shortfall of ${fundSufficiency.shortfall_amount?.toLocaleString()}. 
+            Current assets cover only {fundSufficiency.months_covered} months of premiums.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Overview Cards */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Policies</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{policies.length}</div>
+            <p className="text-xs text-muted-foreground">
+              Total death benefit: ${policies.reduce((sum, p) => sum + p.death_benefit, 0).toLocaleString()}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Monthly Premium</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              ${policies.reduce((sum, p) => sum + p.monthly_premium, 0).toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Annual: ${(policies.reduce((sum, p) => sum + p.monthly_premium, 0) * 12).toLocaleString()}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Upcoming Payments</CardTitle>
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{upcomingPremiums.filter(p => p.days_until_due <= 30).length}</div>
+            <p className="text-xs text-muted-foreground">Due within 30 days</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Fund Coverage</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {fundSufficiency ? `${fundSufficiency.months_covered} months` : 'N/A'}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Based on current liquid assets
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="policies" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="policies">Insurance Policies</TabsTrigger>
+          <TabsTrigger value="upcoming">Upcoming Premiums</TabsTrigger>
+          <TabsTrigger value="history">Payment History</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="policies" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Insurance Policies</CardTitle>
+              <CardDescription>
+                Active life insurance policies held by the trust
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Policy Number</TableHead>
+                    <TableHead>Insurance Company</TableHead>
+                    <TableHead>Monthly Premium</TableHead>
+                    <TableHead>Next Due</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {policies.map((policy) => (
+                    <TableRow key={policy.id}>
+                      <TableCell className="font-medium">{policy.policy_number}</TableCell>
+                      <TableCell>{policy.insurance_company}</TableCell>
+                      <TableCell>${policy.monthly_premium.toLocaleString()}</TableCell>
+                      <TableCell>
+                        <Badge variant={
+                          policy.next_premium_due && new Date(policy.next_premium_due) < new Date()
+                            ? 'destructive'
+                            : policy.next_premium_due && new Date(policy.next_premium_due) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+                            ? 'warning'
+                            : 'default'
+                        }>
+                          {policy.next_premium_due
+                            ? format(new Date(policy.next_premium_due), 'MMM d, yyyy')
+                            : 'No payment scheduled'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <RecordPremiumPaymentModal
+                            policyId={policy.id}
+                            policyNumber={policy.policy_number}
+                            premiumAmount={policy.monthly_premium}
+                            trustId={trustId}
+                            trustName={trust?.name || ''}
+                            onPaymentRecorded={() => {
+                              fetchPolicies();
+                              fetchUpcomingPremiums();
+                              fetchPaymentHistory();
+                              checkFundSufficiency();
+                            }}
+                          />
+                          <Button variant="ghost" size="sm">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="upcoming" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Upcoming Premium Payments</CardTitle>
+              <CardDescription>
+                Premium payments due in the next 90 days
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Policy</TableHead>
+                    <TableHead>Insurance Company</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Due Date</TableHead>
+                    <TableHead>Days Until Due</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {upcomingPremiums.map((premium) => (
+                    <TableRow key={`${premium.policy_id}-${premium.due_date}`}>
+                      <TableCell className="font-medium">{premium.policy_number}</TableCell>
+                      <TableCell>{premium.insurance_company}</TableCell>
+                      <TableCell>${premium.premium_amount.toLocaleString()}</TableCell>
+                      <TableCell>{format(new Date(premium.due_date), 'MMM d, yyyy')}</TableCell>
+                      <TableCell>
+                        <Badge variant={
+                          premium.days_until_due <= 0 ? 'destructive' :
+                          premium.days_until_due <= 7 ? 'warning' : 'default'
+                        }>
+                          {premium.days_until_due <= 0 
+                            ? 'Overdue' 
+                            : `${premium.days_until_due} days`}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="history" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Payment History</CardTitle>
+              <CardDescription>
+                Recent premium payments made by the trust
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Policy</TableHead>
+                    <TableHead>Payment Date</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Method</TableHead>
+                    <TableHead>Reference</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paymentHistory.map((payment) => (
+                    <TableRow key={payment.id}>
+                      <TableCell className="font-medium">{payment.policy_number}</TableCell>
+                      <TableCell>{format(new Date(payment.payment_date), 'MMM d, yyyy')}</TableCell>
+                      <TableCell>${payment.amount.toLocaleString()}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {payment.payment_method}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{payment.reference_number}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+</div>
+  );
+}
+
+export default function PremiumDashboard() { return PremiumDashboard(); }

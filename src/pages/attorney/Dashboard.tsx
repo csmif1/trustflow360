@@ -1,0 +1,429 @@
+import React, { useEffect, useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
+import PremiumDashboard from "@/components/PremiumDashboard";
+import AnnualTaxReport from "@/components/Reports/AnnualTaxReport";
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { 
+  FileText, 
+  Users, 
+  DollarSign, 
+  Clock, 
+  AlertTriangle,
+  TrendingUp,
+  CheckCircle,
+  Upload,
+  Brain,
+  Mail,
+  FileSignature
+} from 'lucide-react';
+import TrustsPage from "@/components/TrustsPage";
+import DocumentUpload from './DocumentUpload';
+import CrummeyNotices from './CrummeyNotices';
+import WorkflowDashboard from "@/components/WorkflowDashboard";
+import EmailLogs from './EmailLogs';
+import Policies from './Policies';
+
+// Initialize Supabase client
+const supabaseUrl = 'https://fnivqabphgbmkzpwowwg.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZuaXZxYWJwaGdibWt6cHdvd3dnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1ODQzMDQsImV4cCI6MjA2ODE2MDMwNH0.0DkS5we5JJXWxQk3tFmOyTejsQay2nesQx407VAvO4w';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Simple toast implementation
+const toast = {
+  error: (message: string) => {
+    console.error(message);
+    const toastEl = document.createElement('div');
+    toastEl.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+    toastEl.textContent = message;
+    document.body.appendChild(toastEl);
+    setTimeout(() => toastEl.remove(), 3000);
+  },
+  success: (message: string) => {
+    console.log(message);
+    const toastEl = document.createElement('div');
+    toastEl.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+    toastEl.textContent = message;
+    document.body.appendChild(toastEl);
+    setTimeout(() => toastEl.remove(), 3000);
+  }
+};
+
+interface ComplianceAlert {
+  id: string;
+  type: 'deadline' | 'missing_doc' | 'signature_pending';
+  message: string;
+  severity: 'high' | 'medium' | 'low';
+  dueDate?: string;
+}
+
+interface DashboardStats {
+  totalTrusts: number;
+  pendingNotices: number;
+  totalGiftsThisYear: number;
+  complianceScore: number;
+}
+
+export default function AttorneyDashboard() {
+  const [stats, setStats] = useState<DashboardStats>({
+    totalTrusts: 0,
+    pendingNotices: 0,
+    totalGiftsThisYear: 0,
+    complianceScore: 0
+  });
+  const [complianceAlerts, setComplianceAlerts] = useState<ComplianceAlert[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('quick-actions');
+
+  // Component wrappers
+  const DocumentUploadComponent = () => <DocumentUpload />;
+  const CrummeyNoticesComponent = () => <CrummeyNotices />;
+  const EmailLogsComponent = () => <EmailLogs />;
+  const PoliciesComponent = () => <Policies />;
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch trust count
+      const { count: trustCount } = await supabase
+        .from('trusts')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'Active');
+
+      // Fetch pending notices
+      const { count: noticeCount } = await supabase
+        .from('crummey_notices')
+        .select('*', { count: 'exact', head: true })
+        .eq('notice_status', 'pending');
+
+      // Fetch gifts this year
+      const currentYear = new Date().getFullYear();
+      const { data: giftsData } = await supabase
+        .from('gifts')
+        .select('amount')
+        .gte('gift_date', `${currentYear}-01-01`);
+      
+      const totalGifts = giftsData?.reduce((sum, gift) => sum + (gift.amount || 0), 0) || 0;
+
+      // Calculate compliance score
+      const complianceScore = calculateComplianceScore(trustCount || 0, noticeCount || 0);
+
+      setStats({
+        totalTrusts: trustCount || 0,
+        pendingNotices: noticeCount || 0,
+        totalGiftsThisYear: totalGifts,
+        complianceScore
+      });
+
+      // Generate compliance alerts
+      generateComplianceAlerts(noticeCount || 0);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      toast.error('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateComplianceScore = (trusts: number, pendingNotices: number): number => {
+    if (trusts === 0) return 100;
+    const noticeRatio = pendingNotices / trusts;
+    return Math.max(0, Math.round(100 - (noticeRatio * 50)));
+  };
+
+  const generateComplianceAlerts = async (pendingCount: number) => {
+    const alerts: ComplianceAlert[] = [];
+    
+    if (pendingCount > 0) {
+      alerts.push({
+        id: '1',
+        type: 'deadline',
+        message: `${pendingCount} Crummey notices pending delivery`,
+        severity: 'high'
+      });
+    }
+
+    // Check for approaching deadlines
+    const { data: upcomingDeadlines } = await supabase
+      .from('crummey_notices')
+      .select('*')
+      .eq('notice_status', 'pending')
+      .lte('withdrawal_deadline', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString())
+      .limit(5);
+
+    if (upcomingDeadlines && upcomingDeadlines.length > 0) {
+      alerts.push({
+        id: '2',
+        type: 'deadline',
+        message: `${upcomingDeadlines.length} notices approaching 30-day deadline`,
+        severity: 'high',
+        dueDate: upcomingDeadlines[0].withdrawal_deadline
+      });
+    }
+
+    setComplianceAlerts(alerts);
+  };
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">
+            TrustFlow360
+          </h1>
+          <p className="text-slate-600">Comprehensive legal administration with AI-powered compliance</p>
+        </div>
+
+        {/* Premium Management Dashboard */}
+        <div className="mb-8">
+          <PremiumDashboard />
+        </div>
+
+        {/* Compliance Alerts */}
+        {complianceAlerts.length > 0 && (
+          <div className="mb-6">
+            <Alert className="border-orange-200 bg-orange-50">
+              <AlertTriangle className="h-4 w-4 text-orange-600" />
+              <AlertTitle>Compliance Alerts</AlertTitle>
+              <AlertDescription>
+                <ul className="mt-2 space-y-1">
+                  {complianceAlerts.map(alert => (
+                    <li key={alert.id} className="flex items-center gap-2">
+                      <Badge variant={alert.severity === 'high' ? 'destructive' : 'secondary'}>
+                        {alert.severity}
+                      </Badge>
+                      <span>{alert.message}</span>
+                      {alert.dueDate && (
+                        <span className="text-sm text-slate-500">
+                          Due: {new Date(alert.dueDate).toLocaleDateString()}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-medium flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Active Trusts
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">10</div>
+              <p className="text-blue-100 text-sm mt-1">Managed ILITs</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-orange-500 to-orange-600 text-white">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-medium flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Pending Notices
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{stats.pendingNotices}</div>
+              <p className="text-orange-100 text-sm mt-1">Awaiting delivery</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-green-500 to-green-600 text-white">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-medium flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                YTD Gifts
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">${(stats.totalGiftsThisYear / 1000).toFixed(0)}k</div>
+              <p className="text-green-100 text-sm mt-1">Total contributions</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-medium flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Compliance Score
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{stats.complianceScore}%</div>
+              <Progress value={stats.complianceScore} className="mt-2 bg-purple-300" />
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Action Tabs */}
+        <div>
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+            <TabsList className="grid grid-cols-8 w-full lg:w-auto">
+              <TabsTrigger value="quick-actions">Quick Actions</TabsTrigger>
+              <TabsTrigger value="trusts">Trusts</TabsTrigger>
+              <TabsTrigger value="policies">Policies</TabsTrigger>
+              <TabsTrigger value="documents">Documents</TabsTrigger>
+              <TabsTrigger value="compliance">Compliance</TabsTrigger>
+              <TabsTrigger value="tax-reports">Tax Reports</TabsTrigger>
+              <TabsTrigger value="workflows">Workflows</TabsTrigger>
+              <TabsTrigger value="email-logs">Email Logs</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="quick-actions" className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Upload Document Card */}
+                <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-3">
+                      <div className="p-3 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
+                        <Upload className="h-6 w-6 text-blue-600" />
+                      </div>
+                      Upload Gift Letter
+                    </CardTitle>
+                    <CardDescription>
+                      Process gift documentation with AI extraction
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <Brain className="h-4 w-4" />
+                        <span>AI-powered data extraction</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <CheckCircle className="h-4 w-4" />
+                        <span>Automatic Crummey notice generation</span>
+                      </div>
+                      <Button 
+                        className="w-full mt-4"
+                        onClick={() => setActiveTab('documents')}
+                      >
+                        Upload Document
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Record Gift Card */}
+                <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-3">
+                      <div className="p-3 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
+                        <DollarSign className="h-6 w-6 text-green-600" />
+                      </div>
+                      Record Gift Manually
+                    </CardTitle>
+                    <CardDescription>
+                      Enter gift details directly
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <FileText className="h-4 w-4" />
+                        <span>Quick entry form</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <Users className="h-4 w-4" />
+                        <span>Auto-calculate beneficiary shares</span>
+                      </div>
+                      <Button 
+                        className="w-full mt-4" 
+                        variant="outline"
+                        onClick={() => setActiveTab('trusts')}
+                      >
+                        Enter Gift Details
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Send Notices Card */}
+                <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-3">
+                      <div className="p-3 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors">
+                        <Mail className="h-6 w-6 text-purple-600" />
+                      </div>
+                      Send Crummey Notices
+                    </CardTitle>
+                    <CardDescription>
+                      {stats.pendingNotices} notices pending
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <FileSignature className="h-4 w-4" />
+                        <span>DocuSign & Adobe Sign ready</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <Mail className="h-4 w-4" />
+                        <span>Physical mail tracking</span>
+                      </div>
+                      <Button 
+                        className="w-full mt-4" 
+                        variant="secondary"
+                        onClick={() => setActiveTab('compliance')}
+                      >
+                        Review & Send
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="trusts">
+              <TrustsPage />
+            </TabsContent>
+
+            <TabsContent value="policies">
+              <PoliciesComponent />
+            </TabsContent>
+
+            <TabsContent value="documents">
+              <DocumentUploadComponent />
+            </TabsContent>
+
+            <TabsContent value="compliance">
+              <CrummeyNoticesComponent />
+            </TabsContent>
+
+            <TabsContent value="tax-reports" className="space-y-6">
+              <AnnualTaxReport />
+            </TabsContent>
+
+            <TabsContent value="workflows">
+              <WorkflowDashboard />
+            </TabsContent>
+
+            <TabsContent value="email-logs">
+              <EmailLogsComponent />
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+    </div>
+  );
+}

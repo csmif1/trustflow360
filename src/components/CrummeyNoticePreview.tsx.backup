@@ -1,0 +1,218 @@
+import React from 'react';
+import jsPDF from 'jspdf';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Download, Eye, Printer } from 'lucide-react';
+
+interface CrummeyNoticePreviewProps {
+  notice: {
+    id: string;
+    beneficiary_name: string;
+    beneficiary_email: string;
+    trust_name: string;
+    gift_date: string;
+    gift_amount: number;
+    donor_name: string;
+    withdrawal_deadline: string;
+    withdrawal_amount: number;
+    notice_date: string;
+    ein?: string;
+  };
+  onClose?: () => void;
+}
+
+export const CrummeyNoticePreview: React.FC<CrummeyNoticePreviewProps> = ({ notice, onClose }) => {
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('CRUMMEY WITHDRAWAL NOTICE', 105, 20, { align: 'center' });
+    
+    // Trust Name
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'normal');
+    doc.text(notice.trust_name, 105, 30, { align: 'center' });
+    
+    if (notice.ein) {
+      doc.setFontSize(10);
+      doc.text(`EIN: ${notice.ein}`, 105, 36, { align: 'center' });
+    }
+    
+    // Date
+    doc.setFontSize(12);
+    doc.text(formatDate(notice.notice_date), 20, 50);
+    
+    // Beneficiary Info
+    doc.setFontSize(12);
+    doc.text(`Dear ${notice.beneficiary_name}:`, 20, 65);
+    
+    // Main Content
+    const content = [
+      `This letter is to notify you that a gift in the amount of ${formatCurrency(notice.gift_amount)} has been`,
+      `made to the ${notice.trust_name} by ${notice.donor_name} on`,
+      `${formatDate(notice.gift_date)}.`,
+      '',
+      'You have the right to withdraw from the trust an amount equal to your proportionate',
+      `share of this gift, which is ${formatCurrency(notice.withdrawal_amount)}.`,
+      '',
+      'This withdrawal right will lapse and no longer be exercisable by you after',
+      `${formatDate(notice.withdrawal_deadline)}.`,
+      '',
+      'If you wish to exercise your withdrawal right, please notify the trustee in writing',
+      'before the deadline stated above. If you do not wish to exercise this right, no',
+      'action is required on your part.',
+      '',
+      'Please retain this notice for your records.',
+      '',
+      'Sincerely,',
+      '',
+      '',
+      '_________________________________',
+      'Trustee',
+      `${notice.trust_name}`
+    ];
+    
+    let yPosition = 85;
+    doc.setFont('helvetica', 'normal');
+    
+    content.forEach(line => {
+      if (line === '') {
+        yPosition += 5;
+      } else {
+        const lines = doc.splitTextToSize(line, 170);
+        doc.text(lines, 20, yPosition);
+        yPosition += lines.length * 6;
+      }
+    });
+    
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(128);
+    doc.text('This notice is provided pursuant to the provisions of the trust agreement.', 105, 280, { align: 'center' });
+    
+    // Reset text color
+    doc.setTextColor(0);
+    
+    // Save the PDF
+    doc.save(`Crummey_Notice_${notice.beneficiary_name.replace(/\s+/g, '_')}_${notice.id.slice(0, 8)}.pdf`);
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="mb-4 flex justify-between items-center no-print">
+        <h2 className="text-2xl font-bold">Crummey Notice Preview</h2>
+        <div className="flex gap-2">
+          <Button onClick={generatePDF} variant="outline">
+            <Download className="mr-2 h-4 w-4" />
+            Download PDF
+          </Button>
+          <Button onClick={handlePrint} variant="outline">
+            <Printer className="mr-2 h-4 w-4" />
+            Print
+          </Button>
+          {onClose && (
+            <Button onClick={onClose} variant="ghost">
+              Close
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <Card className="bg-white shadow-lg print:shadow-none">
+        <CardContent className="p-12 print:p-8">
+          {/* Letter Header */}
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-bold mb-2">CRUMMEY WITHDRAWAL NOTICE</h1>
+            <p className="text-lg">{notice.trust_name}</p>
+            {notice.ein && <p className="text-sm text-gray-600">EIN: {notice.ein}</p>}
+          </div>
+
+          {/* Date */}
+          <p className="mb-8">{formatDate(notice.notice_date)}</p>
+
+          {/* Salutation */}
+          <p className="mb-6">Dear {notice.beneficiary_name}:</p>
+
+          {/* Body */}
+          <div className="space-y-4 mb-8">
+            <p>
+              This letter is to notify you that a gift in the amount of <strong>{formatCurrency(notice.gift_amount)}</strong> has been
+              made to the {notice.trust_name} by {notice.donor_name} on {formatDate(notice.gift_date)}.
+            </p>
+
+            <p>
+              You have the right to withdraw from the trust an amount equal to your proportionate
+              share of this gift, which is <strong>{formatCurrency(notice.withdrawal_amount)}</strong>.
+            </p>
+
+            <p>
+              This withdrawal right will lapse and no longer be exercisable by you after{' '}
+              <strong>{formatDate(notice.withdrawal_deadline)}</strong>.
+            </p>
+
+            <p>
+              If you wish to exercise your withdrawal right, please notify the trustee in writing
+              before the deadline stated above. If you do not wish to exercise this right, no
+              action is required on your part.
+            </p>
+
+            <p>Please retain this notice for your records.</p>
+          </div>
+
+          {/* Signature */}
+          <div className="mt-12">
+            <p>Sincerely,</p>
+            <div className="mt-16 mb-2">
+              <p>_________________________________</p>
+            </div>
+            <p>Trustee</p>
+            <p>{notice.trust_name}</p>
+          </div>
+
+          {/* Footer */}
+          <div className="mt-16 text-center text-xs text-gray-500">
+            <p>This notice is provided pursuant to the provisions of the trust agreement.</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <style jsx>{`
+        @media print {
+          .no-print {
+            display: none !important;
+          }
+          
+          @page {
+            margin: 0.5in;
+          }
+          
+          body {
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          }
+        }
+      `}</style>
+    </div>
+  );
+};

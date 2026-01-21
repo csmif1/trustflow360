@@ -1,0 +1,562 @@
+/* Modern Fiduciary Theme for TrustFlow360 - V3 FINAL */
+/* Professional, refined, with perfect contrast and modern typography */
+
+/* Import Modern Professional Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+  /* Refined Color Palette - Lighter, more sophisticated */
+  --lw-slate-950: #020617;
+  --lw-slate-900: #0f172a;
+  --lw-slate-800: #1e293b;
+  --lw-slate-700: #334155;
+  --lw-slate-600: #475569;
+  --lw-slate-500: #64748b;
+  --lw-slate-400: #94a3b8;
+  --lw-slate-300: #cbd5e1;
+  --lw-slate-200: #e2e8f0;
+  --lw-slate-100: #f1f5f9;
+  --lw-slate-50: #f8fafc;
+  
+  /* Softer Primary Blues */
+  --lw-primary-900: #1e40af;
+  --lw-primary-800: #2563eb;
+  --lw-primary-700: #3b82f6;
+  --lw-primary-600: #60a5fa;
+  --lw-primary-500: #93bbfd;
+  --lw-primary-100: #dbeafe;
+  --lw-primary-50: #eff6ff;
+  
+  /* Success Green */
+  --lw-emerald-700: #047857;
+  --lw-emerald-600: #059669;
+  --lw-emerald-500: #10b981;
+  --lw-emerald-100: #d1fae5;
+  
+  /* Warning Amber */
+  --lw-amber-700: #b45309;
+  --lw-amber-600: #d97706;
+  --lw-amber-500: #f59e0b;
+  --lw-amber-100: #fef3c7;
+  
+  /* Error Red */
+  --lw-red-600: #dc2626;
+  --lw-red-500: #ef4444;
+  --lw-red-100: #fee2e2;
+  
+  /* Sophisticated Shadows */
+  --lw-shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.02);
+  --lw-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  --lw-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+  --lw-shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  --lw-shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.06), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  --lw-shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+}
+
+/* Global Font Application */
+* {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--lw-slate-700);
+}
+
+/* Headings use Plus Jakarta Sans for distinction */
+h1, h2, h3, h4, h5, h6,
+.text-4xl, .text-3xl, .text-2xl, .text-xl, .text-lg {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.025em;
+  color: var(--lw-slate-800);
+}
+
+/* Monospace elements */
+code, pre, .font-mono, [class*="mono"] {
+  font-family: 'IBM Plex Mono', 'Courier New', monospace !important;
+}
+
+/* Override shadcn/ui theme variables */
+:root {
+  --primary: 222 82% 50% !important;
+  --primary-foreground: 0 0% 100% !important;
+  --secondary: 220 13% 91% !important;
+  --secondary-foreground: 220 9% 23% !important;
+  --muted: 220 13% 91% !important;
+  --muted-foreground: 220 9% 46% !important;
+  --border: 220 13% 91% !important;
+}
+
+/* Dashboard Specific Overrides */
+
+/* Main title - FIXED gradient with proper padding */
+.bg-gradient-to-r.from-blue-600.to-indigo-600.bg-clip-text {
+  background: linear-gradient(135deg, var(--lw-primary-800) 0%, var(--lw-primary-700) 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  display: inline-block !important;
+  padding-right: 10px !important;
+  padding-bottom: 2px !important;
+  line-height: 1.2 !important;
+}
+
+/* Specific fix for the dashboard title */
+.text-4xl.font-bold {
+  display: inline-block !important;
+  margin-bottom: 0.5rem !important;
+}
+
+/* Background - Very subtle gradient */
+.bg-gradient-to-br.from-slate-50.to-slate-100 {
+  background: linear-gradient(180deg, #fafbfc 0%, #f7f9fb 100%) !important;
+}
+
+/* Stats Cards - Complete redesign */
+/* Active Trusts Card - Blue gradient with WHITE text */
+.bg-gradient-to-br.from-blue-500.to-blue-600 {
+  background: linear-gradient(135deg, var(--lw-primary-700) 0%, var(--lw-primary-800) 100%) !important;
+  box-shadow: var(--lw-shadow-md) !important;
+  border: none !important;
+}
+
+/* Force ALL text in Active Trusts card to be white */
+.bg-gradient-to-br.from-blue-500.to-blue-600 * {
+  color: white !important;
+}
+
+.bg-gradient-to-br.from-blue-500.to-blue-600 .text-3xl {
+  color: white !important;
+}
+
+.bg-gradient-to-br.from-blue-500.to-blue-600 .text-lg {
+  color: white !important;
+}
+
+.bg-gradient-to-br.from-blue-500.to-blue-600 p {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Pending Notices Card */
+.bg-gradient-to-br.from-orange-500.to-orange-600 {
+  background: white !important;
+  border: 1.5px solid var(--lw-slate-200) !important;
+  box-shadow: var(--lw-shadow-sm) !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.bg-gradient-to-br.from-orange-500.to-orange-600::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--lw-amber-500) 0%, var(--lw-amber-600) 100%);
+}
+
+.bg-gradient-to-br.from-orange-500.to-orange-600 * {
+  color: var(--lw-slate-800) !important;
+}
+
+.bg-gradient-to-br.from-orange-500.to-orange-600 .text-orange-100 {
+  color: var(--lw-slate-600) !important;
+}
+
+/* YTD Gifts Card */
+.bg-gradient-to-br.from-green-500.to-green-600 {
+  background: white !important;
+  border: 1.5px solid var(--lw-slate-200) !important;
+  box-shadow: var(--lw-shadow-sm) !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.bg-gradient-to-br.from-green-500.to-green-600::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--lw-emerald-500) 0%, var(--lw-emerald-600) 100%);
+}
+
+.bg-gradient-to-br.from-green-500.to-green-600 * {
+  color: var(--lw-slate-800) !important;
+}
+
+.bg-gradient-to-br.from-green-500.to-green-600 .text-green-100 {
+  color: var(--lw-slate-600) !important;
+}
+
+/* Compliance Score Card */
+.bg-gradient-to-br.from-purple-500.to-purple-600 {
+  background: var(--lw-primary-50) !important;
+  border: 1.5px solid var(--lw-primary-100) !important;
+  box-shadow: var(--lw-shadow-sm) !important;
+}
+
+.bg-gradient-to-br.from-purple-500.to-purple-600 * {
+  color: var(--lw-primary-900) !important;
+}
+
+.bg-gradient-to-br.from-purple-500.to-purple-600 .text-purple-100 {
+  color: var(--lw-primary-700) !important;
+}
+
+/* Progress bar */
+.bg-purple-300 {
+  background-color: var(--lw-primary-600) !important;
+}
+
+/* TABS - COMPLETE SOLUTION WITH ALL STATES HANDLED */
+[role="tablist"] {
+  background-color: #3b82f6 !important;
+  padding: 4px !important;
+  border-radius: 12px !important;
+  border: none !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Inactive tabs */
+[role="tab"] {
+  font-weight: 500 !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+  background-color: transparent !important;
+  transition: all 0.2s ease !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  border: none !important;
+  cursor: pointer !important;
+}
+
+/* Inactive tab hover */
+[role="tab"]:not([data-state="active"]):hover {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+}
+
+/* Active tab */
+[role="tab"][data-state="active"] {
+  background-color: white !important;
+  color: #3b82f6 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important;
+  font-weight: 600 !important;
+  cursor: default !important;
+}
+
+/* Active tab hover - stays white */
+[role="tab"][data-state="active"]:hover {
+  background-color: white !important;
+  color: #3b82f6 !important;
+}
+/* Quick Action Cards - Modern hover effects */
+.shadow-lg {
+  box-shadow: var(--lw-shadow) !important;
+  border: 1px solid var(--lw-slate-100) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.hover\:shadow-xl:hover {
+  box-shadow: var(--lw-shadow-lg) !important;
+  transform: translateY(-2px) !important;
+  border-color: var(--lw-primary-200) !important;
+}
+
+/* Icon containers - Softer colors */
+.bg-blue-100 {
+  background-color: var(--lw-primary-50) !important;
+}
+
+.bg-green-100 {
+  background-color: var(--lw-emerald-100) !important;
+}
+
+.bg-purple-100 {
+  background-color: var(--lw-primary-50) !important;
+}
+
+.text-blue-600 {
+  color: var(--lw-primary-700) !important;
+}
+
+.text-green-600 {
+  color: var(--lw-emerald-600) !important;
+}
+
+.text-purple-600 {
+  color: var(--lw-primary-700) !important;
+}
+
+/* Hover states for icon containers */
+.group:hover .group-hover\:bg-blue-200 {
+  background-color: var(--lw-primary-700) !important;
+  color: white !important;
+}
+
+.group:hover .group-hover\:bg-blue-200 svg {
+  color: white !important;
+}
+
+.group:hover .group-hover\:bg-green-200 {
+  background-color: var(--lw-emerald-600) !important;
+  color: white !important;
+}
+
+.group:hover .group-hover\:bg-green-200 svg {
+  color: white !important;
+}
+
+.group:hover .group-hover\:bg-purple-200 {
+  background-color: var(--lw-primary-700) !important;
+  color: white !important;
+}
+
+.group:hover .group-hover\:bg-purple-200 svg {
+  color: white !important;
+}
+
+/* Buttons - Modern design */
+button {
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+  transition: all 0.15s ease !important;
+}
+
+.bg-blue-600, .bg-primary, button:not([variant]) {
+  background-color: var(--lw-primary-700) !important;
+  color: white !important;
+  font-weight: 500 !important;
+  box-shadow: var(--lw-shadow-sm) !important;
+}
+
+.bg-blue-600:hover, .bg-primary:hover, button:not([variant]):hover {
+  background-color: var(--lw-primary-800) !important;
+  box-shadow: var(--lw-shadow-md) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Secondary/Outline buttons */
+button[variant="outline"], .variant-outline {
+  background: white !important;
+  border: 1.5px solid var(--lw-slate-200) !important;
+  color: var(--lw-slate-700) !important;
+  font-weight: 500 !important;
+}
+
+button[variant="outline"]:hover, .variant-outline:hover {
+  background-color: var(--lw-slate-50) !important;
+  border-color: var(--lw-slate-300) !important;
+  color: var(--lw-slate-900) !important;
+}
+
+/* Secondary variant */
+button[variant="secondary"] {
+  background-color: var(--lw-slate-100) !important;
+  color: var(--lw-slate-700) !important;
+  border: none !important;
+}
+
+button[variant="secondary"]:hover {
+  background-color: var(--lw-slate-200) !important;
+  color: var(--lw-slate-900) !important;
+}
+
+/* Cards - Refined design */
+.border-0 {
+  border: 1px solid var(--lw-slate-100) !important;
+}
+
+/* Alerts - Softer colors */
+.border-orange-200.bg-orange-50 {
+  background-color: var(--lw-amber-50) !important;
+  border: 1.5px solid var(--lw-amber-200) !important;
+  border-radius: 8px !important;
+}
+
+.text-orange-600 {
+  color: var(--lw-amber-700) !important;
+}
+
+/* Badges */
+.bg-destructive, .bg-red-500, [class*="destructive"] {
+  background-color: var(--lw-red-500) !important;
+  color: white !important;
+  font-weight: 500 !important;
+}
+
+.bg-secondary {
+  background-color: var(--lw-slate-100) !important;
+  color: var(--lw-slate-700) !important;
+  font-weight: 500 !important;
+}
+
+/* Input fields - Modern design */
+input, textarea, select {
+  border: 1.5px solid var(--lw-slate-200) !important;
+  background-color: white !important;
+  font-size: 14px !important;
+  color: var(--lw-slate-800) !important;
+  transition: all 0.15s ease !important;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--lw-primary-600) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+  outline: none !important;
+}
+
+/* Search input specific */
+input[type="search"], input[placeholder*="Search"] {
+  background-color: var(--lw-slate-50) !important;
+  border-color: var(--lw-slate-200) !important;
+}
+
+/* Table improvements */
+table {
+  font-size: 14px !important;
+}
+
+th {
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 600 !important;
+  color: var(--lw-slate-600) !important;
+  text-transform: uppercase !important;
+  font-size: 12px !important;
+  letter-spacing: 0.05em !important;
+  background-color: var(--lw-slate-50) !important;
+}
+
+td {
+  color: var(--lw-slate-700) !important;
+  font-size: 14px !important;
+}
+
+/* Trust page specific */
+.border-l-4.border-blue-500 {
+  border-left-color: var(--lw-primary-600) !important;
+  background-color: var(--lw-primary-50) !important;
+}
+
+/* Document upload area */
+.border-dashed {
+  border-color: var(--lw-slate-300) !important;
+  border-width: 2px !important;
+  background-color: var(--lw-slate-50) !important;
+}
+
+.hover\:border-blue-500:hover {
+  border-color: var(--lw-primary-600) !important;
+  background-color: var(--lw-primary-50) !important;
+}
+
+/* Success states */
+.text-green-500, .text-green-600 {
+  color: var(--lw-emerald-600) !important;
+}
+
+.bg-green-50 {
+  background-color: var(--lw-emerald-50) !important;
+}
+
+.border-green-200 {
+  border-color: var(--lw-emerald-200) !important;
+}
+
+/* Toast notifications */
+.bg-red-500 {
+  background-color: var(--lw-red-500) !important;
+  box-shadow: var(--lw-shadow-lg) !important;
+}
+
+.bg-green-500 {
+  background-color: var(--lw-emerald-600) !important;
+  box-shadow: var(--lw-shadow-lg) !important;
+}
+
+/* Dialog/Modal improvements */
+[role="dialog"] {
+  box-shadow: var(--lw-shadow-xl) !important;
+  border-radius: 12px !important;
+}
+
+/* Loading states */
+.animate-spin {
+  color: var(--lw-primary-600) !important;
+}
+
+.border-primary {
+  border-color: var(--lw-primary-600) !important;
+}
+
+/* Improve readability */
+p, .text-sm, .text-base {
+  line-height: 1.6 !important;
+  color: var(--lw-slate-700) !important;
+}
+
+.text-slate-600 {
+  color: var(--lw-slate-600) !important;
+}
+
+.text-slate-500 {
+  color: var(--lw-slate-500) !important;
+}
+
+/* Card headers */
+.card-header h3, [class*="card-title"] {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 18px !important;
+  color: var(--lw-slate-800) !important;
+}
+
+.card-description, [class*="card-description"] {
+  color: var(--lw-slate-600) !important;
+  font-size: 14px !important;
+}
+
+/* Smooth transitions globally */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Remove harsh shadows globally and replace with subtle ones */
+[class*="shadow"] {
+  box-shadow: var(--lw-shadow-sm) !important;
+}
+
+/* Specific number styling */
+.text-3xl:not(.bg-gradient-to-br.from-blue-500.to-blue-600 .text-3xl), 
+.text-2xl:not(.bg-gradient-to-br.from-blue-500.to-blue-600 .text-2xl) {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-weight: 700 !important;
+  color: var(--lw-slate-900) !important;
+}
+
+/* Mobile responsive improvements */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px !important;
+  }
+  
+  .text-4xl {
+    font-size: 1.875rem !important;
+  }
+  
+  .text-3xl {
+    font-size: 1.5rem !important;
+  }
+}

@@ -1,0 +1,521 @@
+import React, { useEffect, useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Users, 
+  FileText, 
+  DollarSign, 
+  Mail,
+  Plus,
+  Search,
+  Building,
+  Calendar,
+  ChevronRight,
+  Eye,
+  Download,
+  Shield
+} from 'lucide-react';
+
+// Initialize Supabase client
+const supabaseUrl = 'https://fnivqabphgbmkzpwowwg.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZuaXZxYWJwaGdibWt6cHdvd3dnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1ODQzMDQsImV4cCI6MjA2ODE2MDMwNH0.0DkS5we5JJXWxQk3tFmOyTejsQay2nesQx407VAvO4w';
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Toast implementation
+const toast = {
+  error: (message: string) => {
+    console.error(message);
+    const toastEl = document.createElement('div');
+    toastEl.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+    toastEl.textContent = message;
+    document.body.appendChild(toastEl);
+    setTimeout(() => toastEl.remove(), 3000);
+  },
+  success: (message: string) => {
+    console.log(message);
+    const toastEl = document.createElement('div');
+    toastEl.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+    toastEl.textContent = message;
+    document.body.appendChild(toastEl);
+    setTimeout(() => toastEl.remove(), 3000);
+  }
+};
+
+interface ILIT {
+  id: string;
+  ein: string;
+  trustee_name: string;
+  trustee_email: string;
+  trustee_phone: string;
+  grantor_name: string;
+  grantor_email: string;
+  annual_exclusion_amount: number;
+  crummey_notice_days: number;
+  created_at: string;
+  trust?: {
+    id: string;
+    trust_name: string;
+    grantor_name: string;
+    trust_type: string;
+    status: string;
+  };
+}
+
+interface Beneficiary {
+  id: string;
+  trust_id: string;
+  name: string;
+  email: string;
+  phone: string;
+  relationship: string;
+  percentage: number;
+  is_primary: boolean;
+}
+
+interface Gift {
+  id: string;
+  ilit_id: string;
+  gift_date: string;
+  gift_type: string;
+  amount: number;
+  donor_name: string;
+  created_at: string;
+}
+
+export default function TrustsPage() {
+  const [ilits, setIlits] = useState<ILIT[]>([]);
+  const [selectedIlit, setSelectedIlit] = useState<ILIT | null>(null);
+  const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([]);
+  const [recentGifts, setRecentGifts] = useState<Gift[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showGiftDialog, setShowGiftDialog] = useState(false);
+  const [giftForm, setGiftForm] = useState({
+    amount: '',
+    donorName: '',
+    donorEmail: '',
+    giftType: 'cash'
+  });
+
+  useEffect(() => {
+    fetchILITs();
+  }, []);
+
+  const fetchILITs = async () => {
+    try {
+      setLoading(true);
+      
+      // Call your Edge Function
+      const response = await supabase.functions.invoke('get-ilit-details', {
+        body: { trust_name: searchTerm },
+      });
+
+      if (response.error) throw response.error;
+      
+      if (response.data?.status === 'success') {
+        setIlits(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching ILITs:', error);
+      toast.error('Failed to load trusts');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchBeneficiaries = async (trustId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('beneficiaries')
+        .select('*')
+        .eq('trust_id', trustId)
+        .order('is_primary', { ascending: false });
+
+      if (error) throw error;
+      setBeneficiaries(data || []);
+    } catch (error) {
+      console.error('Error fetching beneficiaries:', error);
+      toast.error('Failed to load beneficiaries');
+    }
+  };
+
+  const fetchRecentGifts = async (ilitId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('gifts')
+        .select('*')
+        .eq('ilit_id', ilitId)
+        .order('gift_date', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+      setRecentGifts(data || []);
+    } catch (error) {
+      console.error('Error fetching gifts:', error);
+      toast.error('Failed to load recent gifts');
+    }
+  };
+
+  const handleSelectIlit = async (ilit: ILIT) => {
+    setSelectedIlit(ilit);
+    if (ilit.trust?.id) {
+      await fetchBeneficiaries(ilit.trust.id);
+    }
+    await fetchRecentGifts(ilit.id);
+  };
+
+  const handleRecordGift = async () => {
+    if (!selectedIlit || !giftForm.amount || !giftForm.donorName) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      // Call your Edge Function to record the gift
+      const response = await supabase.functions.invoke('record-gift', {
+        body: {
+          ilit_id: selectedIlit.id,
+          gift_date: new Date().toISOString().split('T')[0],
+          gift_type: giftForm.giftType,
+          amount: parseFloat(giftForm.amount),
+          donor_name: giftForm.donorName,
+          donor_email: giftForm.donorEmail,
+          description: `Manual gift entry - ${giftForm.giftType}`,
+          ai_confidence_score: 1.0 // Manual entry has 100% confidence
+        }
+      });
+
+      if (response.error) throw response.error;
+
+      toast.success('Gift recorded successfully! Crummey notices have been created.');
+      setShowGiftDialog(false);
+      setGiftForm({ amount: '', donorName: '', donorEmail: '', giftType: 'cash' });
+      
+      // Refresh gifts list
+      await fetchRecentGifts(selectedIlit.id);
+    } catch (error) {
+      console.error('Error recording gift:', error);
+      toast.error('Failed to record gift');
+    }
+  };
+
+  const filteredIlits = ilits.filter(ilit => 
+    ilit.ein.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    ilit.trust?.trust_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    ilit.trustee_name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Trust Management</h1>
+          <p className="text-slate-600">Manage ILITs, beneficiaries, and record gifts</p>
+        </div>
+
+        {/* Search Bar */}
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              type="text"
+              placeholder="Search by EIN, trust name, or trustee..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Trust List */}
+          <div className="lg:col-span-1">
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Active ILITs</span>
+                  <Badge variant="secondary">{filteredIlits.length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="divide-y divide-slate-200 max-h-[600px] overflow-y-auto">
+                  {loading ? (
+                    <div className="p-8 text-center text-slate-500">Loading...</div>
+                  ) : filteredIlits.length === 0 ? (
+                    <div className="p-8 text-center text-slate-500">No trusts found</div>
+                  ) : (
+                    filteredIlits.map((ilit) => (
+                      <div
+                        key={ilit.id}
+                        onClick={() => handleSelectIlit(ilit)}
+                        className={`p-4 cursor-pointer hover:bg-slate-50 transition-colors ${
+                          selectedIlit?.id === ilit.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-1">
+                            <h3 className="font-medium text-slate-900">
+                              {ilit.trust?.trust_name || 'Unnamed Trust'}
+                            </h3>
+                            <p className="text-sm text-slate-600">EIN: {ilit.ein}</p>
+                            <p className="text-sm text-slate-500">Trustee: {ilit.trustee_name}</p>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-slate-400 mt-1" />
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Trust Details */}
+          <div className="lg:col-span-2">
+            {selectedIlit ? (
+              <div className="space-y-6">
+                {/* Trust Info Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span>{selectedIlit.trust?.trust_name || 'Trust Details'}</span>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm">
+                          <Download className="h-4 w-4 mr-2" />
+                          Export
+                        </Button>
+                        <Dialog open={showGiftDialog} onOpenChange={setShowGiftDialog}>
+                          <DialogTrigger asChild>
+                            <Button size="sm">
+                              <Plus className="h-4 w-4 mr-2" />
+                              Record Gift
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Record New Gift</DialogTitle>
+                              <DialogDescription>
+                                Enter gift details to generate Crummey notices
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4 mt-4">
+                              <div>
+                                <Label htmlFor="amount">Gift Amount ($)</Label>
+                                <Input
+                                  id="amount"
+                                  type="number"
+                                  placeholder="50000"
+                                  value={giftForm.amount}
+                                  onChange={(e) => setGiftForm({...giftForm, amount: e.target.value})}
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="donorName">Donor Name</Label>
+                                <Input
+                                  id="donorName"
+                                  placeholder="John Doe"
+                                  value={giftForm.donorName}
+                                  onChange={(e) => setGiftForm({...giftForm, donorName: e.target.value})}
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="donorEmail">Donor Email</Label>
+                                <Input
+                                  id="donorEmail"
+                                  type="email"
+                                  placeholder="john@example.com"
+                                  value={giftForm.donorEmail}
+                                  onChange={(e) => setGiftForm({...giftForm, donorEmail: e.target.value})}
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="giftType">Gift Type</Label>
+                                <select
+                                  id="giftType"
+                                  className="w-full p-2 border rounded"
+                                  value={giftForm.giftType}
+                                  onChange={(e) => setGiftForm({...giftForm, giftType: e.target.value})}
+                                >
+                                  <option value="cash">Cash</option>
+                                  <option value="securities">Securities</option>
+                                  <option value="real_estate">Real Estate</option>
+                                  <option value="other">Other</option>
+                                </select>
+                              </div>
+                              <Button onClick={handleRecordGift} className="w-full">
+                                Record Gift & Generate Notices
+                              </Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-sm text-slate-600">EIN</p>
+                          <p className="font-medium">{selectedIlit.ein}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-slate-600">Trustee</p>
+                          <p className="font-medium">{selectedIlit.trustee_name}</p>
+                          <p className="text-sm text-slate-500">{selectedIlit.trustee_email}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-slate-600">Annual Exclusion</p>
+                          <p className="font-medium">${selectedIlit.annual_exclusion_amount.toLocaleString()}</p>
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-sm text-slate-600">Grantor</p>
+                          <p className="font-medium">{selectedIlit.grantor_name}</p>
+                          <p className="text-sm text-slate-500">{selectedIlit.grantor_email}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-slate-600">Crummey Notice Period</p>
+                          <p className="font-medium">{selectedIlit.crummey_notice_days} days</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-slate-600">Status</p>
+                          <Badge variant="success">{selectedIlit.trust?.status || 'Active'}</Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Tabs for Beneficiaries and Gifts */}
+                <Tabs defaultValue="beneficiaries" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="beneficiaries">
+                      Beneficiaries ({beneficiaries.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="gifts">
+                      Recent Gifts ({recentGifts.length})
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="beneficiaries">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Beneficiaries</CardTitle>
+                        <CardDescription>
+                          Trust beneficiaries and their allocations
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Name</TableHead>
+                              <TableHead>Relationship</TableHead>
+                              <TableHead>Percentage</TableHead>
+                              <TableHead>Contact</TableHead>
+                              <TableHead>Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {beneficiaries.map((beneficiary) => (
+                              <TableRow key={beneficiary.id}>
+                                <TableCell className="font-medium">
+                                  {beneficiary.name}
+                                  {beneficiary.is_primary && (
+                                    <Badge variant="secondary" className="ml-2">Primary</Badge>
+                                  )}
+                                </TableCell>
+                                <TableCell>{beneficiary.relationship}</TableCell>
+                                <TableCell>{beneficiary.percentage}%</TableCell>
+                                <TableCell>
+                                  <div className="text-sm">
+                                    <p>{beneficiary.email}</p>
+                                    <p className="text-slate-500">{beneficiary.phone}</p>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="success">Active</Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                  
+                  <TabsContent value="gifts">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Recent Gifts</CardTitle>
+                        <CardDescription>
+                          Last 5 gifts recorded for this trust
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Date</TableHead>
+                              <TableHead>Donor</TableHead>
+                              <TableHead>Type</TableHead>
+                              <TableHead>Amount</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {recentGifts.map((gift) => (
+                              <TableRow key={gift.id}>
+                                <TableCell>
+                                  {new Date(gift.gift_date).toLocaleDateString()}
+                                </TableCell>
+                                <TableCell>{gift.donor_name}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline">{gift.gift_type}</Badge>
+                                </TableCell>
+                                <TableCell className="font-medium">
+                                  ${gift.amount.toLocaleString()}
+                                </TableCell>
+                                <TableCell>
+                                  <Button variant="ghost" size="sm">
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            ) : (
+              <Card className="h-full flex items-center justify-center">
+                <CardContent className="text-center py-16">
+                  <Shield className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-slate-900 mb-2">
+                    Select a Trust
+                  </h3>
+                  <p className="text-slate-600">
+                    Choose a trust from the list to view details and manage beneficiaries
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
