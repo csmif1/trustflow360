@@ -8,7 +8,9 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:edge": "cd supabase/functions && /Users/csmith-mbp/.deno/bin/deno test --allow-all --no-check",
+    "test:edge:watch": "cd supabase/functions && /Users/csmith-mbp/.deno/bin/deno test --allow-all --no-check --watch"
   },
   "dependencies": {
     "@google-ai/generativelanguage": "^3.4.1",
