@@ -5,18 +5,26 @@
 -- This migration configures pg_cron to automatically execute edge functions on a schedule.
 -- These jobs automate compliance tasks for TrustFlow360 ILIT management.
 
--- IMPORTANT: Before running this migration, you must:
--- 1. Replace 'YOUR_PROJECT_REF' with your actual Supabase project reference
--- 2. Replace 'YOUR_SERVICE_ROLE_KEY' with your actual service role key (keep this secret!)
--- 3. Ensure the pg_cron extension is enabled in your Supabase project
+-- PREREQUISITES:
+-- Before running this migration, you MUST set up secrets in Supabase Vault:
+-- 1. supabase_project_url - Your full Supabase project URL
+-- 2. supabase_service_role_key - Your service role key (never commit to git!)
+--
+-- See the "Setting Up Secrets" section in docs/CRON-JOBS-SETUP.md for detailed instructions.
+--
+-- To verify secrets are set, run:
+-- SELECT name FROM vault.decrypted_secrets WHERE name IN ('supabase_project_url', 'supabase_service_role_key');
 
--- Enable pg_cron extension if not already enabled
--- This extension is usually pre-enabled in Supabase projects
+-- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS pg_cron;
+CREATE EXTENSION IF NOT EXISTS pg_net;
 
 -- Grant permissions to use pg_cron
 GRANT USAGE ON SCHEMA cron TO postgres;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA cron TO postgres;
+
+-- Grant permissions to use vault (for reading secrets)
+GRANT USAGE ON SCHEMA vault TO postgres;
 
 -- ============================================================================
 -- JOB 1: Check Premium Reminders
@@ -30,9 +38,10 @@ SELECT cron.schedule(
   '0 8 * * *',                          -- Cron expression: 8 AM UTC daily
   $$
   SELECT net.http_post(
-    url := 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/check-premium-reminders',
+    url := (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'supabase_project_url')
+           || '/functions/v1/check-premium-reminders',
     headers := jsonb_build_object(
-      'Authorization', 'Bearer YOUR_SERVICE_ROLE_KEY',
+      'Authorization', 'Bearer ' || (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'supabase_service_role_key'),
       'Content-Type', 'application/json'
     ),
     body := '{}'::jsonb
@@ -52,9 +61,10 @@ SELECT cron.schedule(
   '0 0 * * *',                          -- Cron expression: midnight UTC daily
   $$
   SELECT net.http_post(
-    url := 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/expire-crummey-notices',
+    url := (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'supabase_project_url')
+           || '/functions/v1/expire-crummey-notices',
     headers := jsonb_build_object(
-      'Authorization', 'Bearer YOUR_SERVICE_ROLE_KEY',
+      'Authorization', 'Bearer ' || (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'supabase_service_role_key'),
       'Content-Type', 'application/json'
     ),
     body := '{}'::jsonb
@@ -75,9 +85,10 @@ SELECT cron.schedule(
   '0 9 * * *',                          -- Cron expression: 9 AM UTC daily
   $$
   SELECT net.http_post(
-    url := 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/send-deadline-alerts',
+    url := (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'supabase_project_url')
+           || '/functions/v1/send-deadline-alerts',
     headers := jsonb_build_object(
-      'Authorization', 'Bearer YOUR_SERVICE_ROLE_KEY',
+      'Authorization', 'Bearer ' || (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'supabase_service_role_key'),
       'Content-Type', 'application/json'
     ),
     body := jsonb_build_object('window_days', 7)
@@ -120,3 +131,5 @@ SELECT cron.schedule(
 -- 4. Edge functions must be deployed before cron jobs can call them
 -- 5. Service role key bypasses RLS policies - use with caution
 -- 6. Failed requests will be logged in cron.job_run_details with status and return_message
+-- 7. Secrets are stored encrypted in vault.secrets and accessed via vault.decrypted_secrets
+-- 8. Never commit actual secrets to git - always use Supabase Vault

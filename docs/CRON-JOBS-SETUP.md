@@ -4,6 +4,21 @@
 
 TrustFlow360 uses Supabase's pg_cron extension to automatically execute compliance-related edge functions on a daily schedule. This document explains the cron job configuration, how to deploy it, and how to monitor and troubleshoot the scheduled tasks.
 
+**🔒 Security Note:** This setup uses Supabase Vault to securely store credentials. No secrets are hardcoded in SQL migrations or committed to git.
+
+## Quick Start Checklist
+
+Before running the cron job migration:
+
+- [ ] Store `supabase_project_url` in Supabase Vault
+- [ ] Store `supabase_service_role_key` in Supabase Vault
+- [ ] Deploy all edge functions to Supabase
+- [ ] Configure `RESEND_API_KEY` for edge functions
+- [ ] Run the cron job migration
+- [ ] Verify cron jobs are active
+
+Detailed instructions below.
+
 ## Scheduled Jobs
 
 ### 1. Check Premium Reminders
@@ -33,9 +48,70 @@ TrustFlow360 uses Supabase's pg_cron extension to automatically execute complian
 
 ## Deployment Steps
 
-### Step 1: Configure Environment Variables
+### Step 1: Set Up Supabase Vault Secrets
 
-Ensure the following environment variables are set in your Supabase project:
+**IMPORTANT:** Before running the cron job migration, you must store credentials in Supabase Vault. This ensures secrets are encrypted and never committed to git.
+
+#### Option A: Using Supabase SQL Editor (Recommended)
+
+1. Go to your Supabase Dashboard → SQL Editor
+2. Run the following SQL to create the required secrets:
+
+```sql
+-- Insert project URL secret
+SELECT vault.create_secret(
+  'https://YOUR_PROJECT_REF.supabase.co',
+  'supabase_project_url',
+  'Supabase project URL for cron jobs'
+);
+
+-- Insert service role key secret
+SELECT vault.create_secret(
+  'YOUR_SERVICE_ROLE_KEY',
+  'supabase_service_role_key',
+  'Service role key for authenticated cron job requests'
+);
+```
+
+3. **Replace the values:**
+   - `YOUR_PROJECT_REF` with your actual project reference (e.g., `abcdefghijklmnop`)
+   - `YOUR_SERVICE_ROLE_KEY` with your actual service role key from Settings → API
+
+4. Verify secrets were created:
+```sql
+SELECT id, name, description, created_at
+FROM vault.decrypted_secrets
+WHERE name IN ('supabase_project_url', 'supabase_service_role_key');
+```
+
+You should see both secrets listed (but the actual values won't be shown in this query for security).
+
+#### Option B: Using Supabase CLI
+
+If you have the Supabase CLI installed:
+
+```bash
+# Create secrets via CLI
+supabase secrets set supabase_project_url=https://YOUR_PROJECT_REF.supabase.co
+supabase secrets set supabase_service_role_key=YOUR_SERVICE_ROLE_KEY
+
+# List secrets to verify
+supabase secrets list
+```
+
+#### Finding Your Credentials
+
+**Project URL:**
+- Dashboard → Settings → API → Project URL
+- Format: `https://[project-ref].supabase.co`
+
+**Service Role Key:**
+- Dashboard → Settings → API → Service Role Key (secret)
+- ⚠️ This key bypasses RLS - keep it secret!
+
+### Step 2: Configure Edge Function Secrets
+
+Ensure the following environment variables are set for edge functions:
 
 ```bash
 # In Supabase Dashboard: Settings > Edge Functions > Secrets
@@ -44,7 +120,7 @@ SUPABASE_URL=https://your_project_ref.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
 ```
 
-### Step 2: Deploy Edge Functions
+### Step 3: Deploy Edge Functions
 
 Deploy all edge functions to Supabase:
 
@@ -59,31 +135,17 @@ supabase functions deploy expire-crummey-notices
 supabase functions deploy send-deadline-alerts
 ```
 
-### Step 3: Update Migration File
+### Step 4: Run the Cron Job Migration
 
-Edit `supabase/migrations/20260122_setup_cron_jobs.sql`:
-
-1. Replace `YOUR_PROJECT_REF` with your Supabase project reference (e.g., `abcdefghijklmnop`)
-2. Replace `YOUR_SERVICE_ROLE_KEY` with your actual service role key
-
-**Example:**
-```sql
-url := 'https://abcdefghijklmnop.supabase.co/functions/v1/check-premium-reminders',
-headers := jsonb_build_object(
-  'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-  'Content-Type', 'application/json'
-),
-```
-
-### Step 4: Run Migration
-
-Apply the migration to your Supabase database:
+Now that secrets are configured, apply the migration to your Supabase database:
 
 ```bash
 supabase db push
 ```
 
 Or manually run the SQL in the Supabase SQL Editor.
+
+**Note:** The migration now automatically reads credentials from Supabase Vault, so there's no need to edit the SQL file with your credentials.
 
 ### Step 5: Verify Installation
 
@@ -250,15 +312,66 @@ Examples:
 
 All times are in UTC. Convert local times to UTC when scheduling.
 
+## Managing Vault Secrets
+
+### Viewing Secrets
+
+To view which secrets exist (without seeing their values):
+
+```sql
+SELECT id, name, description, created_at
+FROM vault.decrypted_secrets;
+```
+
+### Updating Secrets
+
+If you need to update a secret (e.g., after rotating your service role key):
+
+```sql
+-- First, delete the old secret
+DELETE FROM vault.secrets WHERE name = 'supabase_service_role_key';
+
+-- Then create the new secret
+SELECT vault.create_secret(
+  'YOUR_NEW_SERVICE_ROLE_KEY',
+  'supabase_service_role_key',
+  'Service role key for authenticated cron job requests'
+);
+```
+
+**Note:** After updating secrets, cron jobs will automatically use the new values on their next execution. No need to recreate the cron jobs.
+
+### Deleting Secrets
+
+To remove a secret from the vault:
+
+```sql
+DELETE FROM vault.secrets WHERE name = 'secret_name_here';
+```
+
+### Backing Up Secrets
+
+⚠️ **Important:** Vault secrets are encrypted in the database. Before making changes:
+
+1. Store credentials in a secure password manager (1Password, LastPass, etc.)
+2. Never commit actual credentials to git
+3. Document which secrets are required in this file
+
 ## Security Considerations
 
-1. **Service Role Key:** Never commit service role keys to version control. Use environment variables or Supabase secrets.
+1. **Vault Security:** All secrets in Supabase Vault are encrypted at rest. Access requires database credentials.
 
-2. **Access Control:** Service role key bypasses Row Level Security (RLS). Ensure edge functions validate inputs properly.
+2. **Service Role Key:** Never commit service role keys to version control. Always use Supabase Vault or environment variables.
 
-3. **Rate Limiting:** Consider implementing rate limiting in edge functions to prevent abuse if keys are compromised.
+3. **Access Control:** Service role key bypasses Row Level Security (RLS). Ensure edge functions validate inputs properly.
 
-4. **Email Quotas:** Monitor Resend API usage to avoid hitting sending limits.
+4. **Key Rotation:** Rotate service role keys periodically. Update vault secrets after rotation.
+
+5. **Rate Limiting:** Consider implementing rate limiting in edge functions to prevent abuse if keys are compromised.
+
+6. **Email Quotas:** Monitor Resend API usage to avoid hitting sending limits.
+
+7. **Audit Trail:** Monitor `cron.job_run_details` and `email_logs` tables for suspicious activity.
 
 ## Customization
 
