@@ -110,19 +110,19 @@ serve(async (req) => {
     const todayStr = today.toISOString().split('T')[0];
     const futureDateStr = futureDate.toISOString().split('T')[0];
 
-    // Fetch all notices with status 'sent' that expire within the window
+    // Fetch all notices with notice_status 'sent' that expire within the window
     const { data: sentNotices, error: fetchError } = await supabase
       .from('crummey_notices')
       .select(`
         id,
-        trust_id,
         gift_id,
         beneficiary_id,
         withdrawal_deadline,
         withdrawal_amount,
-        notice_date
+        notice_date,
+        gifts!inner(ilit_id, ilits!inner(trust_id, trustee_name, trustee_email))
       `)
-      .eq('status', 'sent')
+      .eq('notice_status', 'sent')
       .gt('withdrawal_deadline', todayStr)
       .lte('withdrawal_deadline', futureDateStr)
 
@@ -147,7 +147,7 @@ serve(async (req) => {
       const { data: existingAlerts } = await supabase
         .from('email_logs')
         .select('id')
-        .eq('crummey_notice_id', notice.id)
+        .eq('notice_id', notice.id)
         .like('subject', '%Deadline Alert%')
         .limit(1)
 
@@ -169,21 +169,16 @@ serve(async (req) => {
         continue;
       }
 
-      // Fetch trust details
-      const { data: trust, error: trustError } = await supabase
-        .from('trusts')
-        .select('id, trust_name, trustee_name, trustee_email')
-        .eq('id', notice.trust_id)
-        .single()
-
-      if (trustError || !trust) {
-        console.error(`Trust not found for notice ${notice.id}`);
+      // Extract trust info from joined data
+      const ilit = notice.gifts?.ilits;
+      if (!ilit) {
+        console.error(`ILIT not found for notice ${notice.id}`);
         alertsSkipped++;
         continue;
       }
 
-      if (!trust.trustee_email) {
-        console.error(`Trustee has no email for trust ${trust.id}`);
+      if (!ilit.trustee_email) {
+        console.error(`Trustee has no email for notice ${notice.id}`);
         alertsSkipped++;
         continue;
       }
@@ -194,22 +189,22 @@ serve(async (req) => {
 
       // Generate alert email content
       const emailData: DeadlineAlertData = {
-        trustee_name: trust.trustee_name,
+        trustee_name: ilit.trustee_name,
         beneficiary_name: beneficiary.name,
-        trust_name: trust.trust_name,
+        trust_name: ilit.trust_id,
         withdrawal_amount: parseFloat(notice.withdrawal_amount),
         withdrawal_deadline: notice.withdrawal_deadline,
         days_remaining: daysRemaining,
         notice_sent_date: notice.notice_date
       };
 
-      const subject = `Crummey Notice Deadline Alert - ${trust.trust_name} - ${daysRemaining} Day${daysRemaining !== 1 ? 's' : ''} Remaining`;
+      const subject = `Crummey Notice Deadline Alert - ${ilit.trust_id} - ${daysRemaining} Day${daysRemaining !== 1 ? 's' : ''} Remaining`;
       const htmlContent = generateDeadlineAlertHTML(emailData);
       const textContent = generateDeadlineAlertText(emailData);
 
       // Send email to trustee
       const sendResult = await sendViaResend({
-        to: trust.trustee_email,
+        to: ilit.trustee_email,
         subject,
         html: htmlContent,
         text: textContent
@@ -217,16 +212,13 @@ serve(async (req) => {
 
       // Create email log
       const emailLogData = {
-        recipient_email: trust.trustee_email,
-        recipient_name: trust.trustee_name,
+        notice_id: notice.id,
+        recipient_email: ilit.trustee_email,
+        recipient_name: ilit.trustee_name,
         subject,
-        trust_id: notice.trust_id,
-        crummey_notice_id: notice.id,
-        status: sendResult.success ? 'sent' : 'failed',
+        html_content: htmlContent,
         sent_at: sendResult.success ? new Date().toISOString() : null,
-        error_message: sendResult.error || null,
-        email_service_id: sendResult.id || null,
-        retry_count: 0
+        delivery_method: sendResult.success ? 'resend' : 'failed'
       };
 
       await supabase
@@ -237,7 +229,7 @@ serve(async (req) => {
         alertsSent++;
         alertResults.push({
           notice_id: notice.id,
-          trustee_email: trust.trustee_email,
+          trustee_email: ilit.trustee_email,
           days_remaining: daysRemaining,
           email_service_id: sendResult.id
         });

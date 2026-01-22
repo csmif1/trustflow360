@@ -19,19 +19,18 @@ serve(async (req) => {
 
     const today = new Date().toISOString().split('T')[0];
 
-    // Fetch all notices with status 'sent' that are past their deadline
+    // Fetch all notices with notice_status 'sent' that are past their deadline
     const { data: sentNotices, error: fetchError } = await supabase
       .from('crummey_notices')
       .select(`
         id,
         gift_id,
-        trust_id,
         beneficiary_id,
         withdrawal_deadline,
-        withdrawal_exercised,
-        status
+        acknowledged_at,
+        notice_status
       `)
-      .eq('status', 'sent')
+      .eq('notice_status', 'sent')
 
     if (fetchError) {
       console.error('Error fetching sent notices:', fetchError);
@@ -49,18 +48,18 @@ serve(async (req) => {
     for (const notice of sentNotices || []) {
       totalChecked++;
 
-      // Skip if withdrawal was exercised
-      if (notice.withdrawal_exercised) {
+      // Skip if withdrawal was acknowledged
+      if (notice.acknowledged_at) {
         continue;
       }
 
       // Check if deadline has passed
       if (notice.withdrawal_deadline < today) {
-        // Update status to expired
+        // Update notice_status to expired
         const { error: updateError } = await supabase
           .from('crummey_notices')
           .update({
-            status: 'expired',
+            notice_status: 'expired',
             updated_at: new Date().toISOString()
           })
           .eq('id', notice.id)
@@ -77,15 +76,13 @@ serve(async (req) => {
         await supabase
           .from('email_logs')
           .insert({
+            notice_id: notice.id,
             recipient_email: 'system',
             recipient_name: 'System Event',
             subject: `Crummey Notice Expired - ID: ${notice.id}`,
-            trust_id: notice.trust_id,
-            crummey_notice_id: notice.id,
-            status: 'sent',
+            html_content: `<p>Crummey notice ${notice.id} expired on ${today}</p>`,
             sent_at: new Date().toISOString(),
-            email_service_id: null,
-            retry_count: 0
+            delivery_method: 'system'
           })
       }
     }

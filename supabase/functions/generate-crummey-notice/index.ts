@@ -99,19 +99,18 @@ serve(async (req) => {
 
     const { notice_id } = validation.data!;
 
-    // Fetch notice details with trust info
+    // Fetch notice details with trust info via gifts -> ilits join
     const { data: notice, error: noticeError } = await supabase
       .from('crummey_notices')
       .select(`
         id,
-        trust_id,
         beneficiary_id,
         gift_id,
         notice_date,
         withdrawal_deadline,
         withdrawal_amount,
-        withdrawal_period_days,
-        status
+        notice_status,
+        gifts!inner(ilit_id, ilits!inner(trust_id, trustee_name, trustee_email))
       `)
       .eq('id', notice_id)
       .single()
@@ -124,7 +123,7 @@ serve(async (req) => {
     }
 
     // Check if already sent
-    if (notice.status === 'sent') {
+    if (notice.notice_status === 'sent') {
       return new Response(
         JSON.stringify({
           error: 'Notice already sent',
@@ -158,33 +157,33 @@ serve(async (req) => {
       )
     }
 
-    // Fetch trust details
-    const { data: trust, error: trustError } = await supabase
-      .from('trusts')
-      .select('id, trust_name, trustee_name, trustee_email')
-      .eq('id', notice.trust_id)
-      .single()
-
-    if (trustError || !trust) {
+    // Extract trust info from joined data
+    const ilit = notice.gifts?.ilits;
+    if (!ilit) {
       return new Response(
-        JSON.stringify({ error: 'Trust not found' }),
+        JSON.stringify({ error: 'ILIT not found for this notice' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
+    // Calculate withdrawal_period_days from dates
+    const noticeDate = new Date(notice.notice_date);
+    const deadlineDate = new Date(notice.withdrawal_deadline);
+    const withdrawalPeriodDays = Math.ceil((deadlineDate.getTime() - noticeDate.getTime()) / (1000 * 60 * 60 * 24));
+
     // Generate email content
     const emailData: CrummeyNoticeData = {
       beneficiary_name: beneficiary.name,
-      trust_name: trust.trust_name,
+      trust_name: ilit.trust_id,
       withdrawal_amount: parseFloat(notice.withdrawal_amount),
       notice_date: notice.notice_date,
       withdrawal_deadline: notice.withdrawal_deadline,
-      withdrawal_period_days: notice.withdrawal_period_days || 30,
-      trustee_name: trust.trustee_name,
-      trustee_email: trust.trustee_email
+      withdrawal_period_days: withdrawalPeriodDays || 30,
+      trustee_name: ilit.trustee_name,
+      trustee_email: ilit.trustee_email
     };
 
-    const subject = `Crummey Notice - ${trust.trust_name} - Withdrawal Rights`;
+    const subject = `Crummey Notice - ${ilit.trust_id} - Withdrawal Rights`;
     const htmlContent = generateCrummeyNoticeHTML(emailData);
     const textContent = generateCrummeyNoticeText(emailData);
 
@@ -198,16 +197,13 @@ serve(async (req) => {
 
     // Create email log
     const emailLogData = {
+      notice_id: notice_id,
       recipient_email: beneficiary.email,
       recipient_name: beneficiary.name,
       subject,
-      trust_id: notice.trust_id,
-      crummey_notice_id: notice_id,
-      status: sendResult.success ? 'sent' : 'failed',
+      html_content: htmlContent,
       sent_at: sendResult.success ? new Date().toISOString() : null,
-      error_message: sendResult.error || null,
-      email_service_id: sendResult.id || null,
-      retry_count: 0
+      delivery_method: sendResult.success ? 'resend' : 'failed'
     };
 
     const { data: emailLog, error: logError } = await supabase
@@ -220,12 +216,12 @@ serve(async (req) => {
       console.error('Error creating email log:', logError);
     }
 
-    // If email sending failed, update status to failed
+    // If email sending failed, update notice_status to failed
     if (!sendResult.success) {
       await supabase
         .from('crummey_notices')
         .update({
-          status: 'failed',
+          notice_status: 'failed',
           updated_at: new Date().toISOString()
         })
         .eq('id', notice_id)
@@ -240,11 +236,11 @@ serve(async (req) => {
       )
     }
 
-    // Update status to sent
+    // Update notice_status to sent
     const { data: updatedNotice, error: updateError } = await supabase
       .from('crummey_notices')
       .update({
-        status: 'sent',
+        notice_status: 'sent',
         sent_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -253,7 +249,7 @@ serve(async (req) => {
       .single()
 
     if (updateError) {
-      console.error('Error updating status:', updateError);
+      console.error('Error updating notice_status:', updateError);
     }
 
     return new Response(
