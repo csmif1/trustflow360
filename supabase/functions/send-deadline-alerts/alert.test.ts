@@ -16,7 +16,7 @@ Deno.test('Deadline Alerts - Notice expiring in 5 days triggers alert', () => {
     id: 'notice-1',
     trust_id: 'trust-1',
     beneficiary_id: 'ben-1',
-    status: 'sent',
+    notice_status: 'sent',
     withdrawal_deadline: getDateOffset(5), // 5 days from now
     withdrawal_amount: '15000.00'
   };
@@ -26,7 +26,7 @@ Deno.test('Deadline Alerts - Notice expiring in 5 days triggers alert', () => {
   const deadline = new Date(mockNotice.withdrawal_deadline);
   const daysUntilDeadline = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-  const shouldAlert = mockNotice.status === 'sent' && daysUntilDeadline > 0 && daysUntilDeadline <= windowDays;
+  const shouldAlert = mockNotice.notice_status === 'sent' && daysUntilDeadline > 0 && daysUntilDeadline <= windowDays;
   assertEquals(shouldAlert, true);
 });
 
@@ -35,7 +35,7 @@ Deno.test('Deadline Alerts - Notice expiring in 10 days does NOT trigger alert',
     id: 'notice-2',
     trust_id: 'trust-1',
     beneficiary_id: 'ben-1',
-    status: 'sent',
+    notice_status: 'sent',
     withdrawal_deadline: getDateOffset(10), // 10 days from now
     withdrawal_amount: '15000.00'
   };
@@ -45,7 +45,7 @@ Deno.test('Deadline Alerts - Notice expiring in 10 days does NOT trigger alert',
   const deadline = new Date(mockNotice.withdrawal_deadline);
   const daysUntilDeadline = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-  const shouldAlert = mockNotice.status === 'sent' && daysUntilDeadline > 0 && daysUntilDeadline <= windowDays;
+  const shouldAlert = mockNotice.notice_status === 'sent' && daysUntilDeadline > 0 && daysUntilDeadline <= windowDays;
   assertEquals(shouldAlert, false);
 });
 
@@ -54,7 +54,7 @@ Deno.test('Deadline Alerts - Expired notice is skipped', () => {
     id: 'notice-3',
     trust_id: 'trust-1',
     beneficiary_id: 'ben-1',
-    status: 'expired',
+    notice_status: 'expired',
     withdrawal_deadline: getDateOffset(-2), // Past deadline
     withdrawal_amount: '15000.00'
   };
@@ -64,7 +64,7 @@ Deno.test('Deadline Alerts - Expired notice is skipped', () => {
   const deadline = new Date(mockNotice.withdrawal_deadline);
   const daysUntilDeadline = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-  const shouldAlert = mockNotice.status === 'sent' && daysUntilDeadline > 0 && daysUntilDeadline <= windowDays;
+  const shouldAlert = mockNotice.notice_status === 'sent' && daysUntilDeadline > 0 && daysUntilDeadline <= windowDays;
   assertEquals(shouldAlert, false);
 });
 
@@ -73,7 +73,7 @@ Deno.test('Deadline Alerts - Already-alerted notice is skipped via email log', (
     id: 'notice-4',
     trust_id: 'trust-1',
     beneficiary_id: 'ben-1',
-    status: 'sent',
+    notice_status: 'sent',
     withdrawal_deadline: getDateOffset(5),
     withdrawal_amount: '15000.00'
   };
@@ -135,10 +135,10 @@ Deno.test('Deadline Alerts - Alert sent to trustee not beneficiary', () => {
 
 Deno.test('Deadline Alerts - Multiple notices within window', () => {
   const mockNotices = [
-    { id: 'notice-1', withdrawal_deadline: getDateOffset(2), status: 'sent' },
-    { id: 'notice-2', withdrawal_deadline: getDateOffset(5), status: 'sent' },
-    { id: 'notice-3', withdrawal_deadline: getDateOffset(7), status: 'sent' },
-    { id: 'notice-4', withdrawal_deadline: getDateOffset(10), status: 'sent' }, // Outside window
+    { id: 'notice-1', withdrawal_deadline: getDateOffset(2), notice_status: 'sent' },
+    { id: 'notice-2', withdrawal_deadline: getDateOffset(5), notice_status: 'sent' },
+    { id: 'notice-3', withdrawal_deadline: getDateOffset(7), notice_status: 'sent' },
+    { id: 'notice-4', withdrawal_deadline: getDateOffset(10), notice_status: 'sent' }, // Outside window
   ];
 
   const windowDays = 7;
@@ -147,7 +147,7 @@ Deno.test('Deadline Alerts - Multiple notices within window', () => {
   const withinWindow = mockNotices.filter(notice => {
     const deadline = new Date(notice.withdrawal_deadline);
     const daysUntilDeadline = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return notice.status === 'sent' && daysUntilDeadline > 0 && daysUntilDeadline <= windowDays;
+    return notice.notice_status === 'sent' && daysUntilDeadline > 0 && daysUntilDeadline <= windowDays;
   });
 
   assertEquals(withinWindow.length, 3);

@@ -19,7 +19,7 @@ serve(async (req) => {
 
     const today = new Date().toISOString().split('T')[0];
 
-    // Fetch all notices with status 'sent' that are past their deadline
+    // Fetch all notices with notice_status 'sent' that are past their deadline
     const { data: sentNotices, error: fetchError } = await supabase
       .from('crummey_notices')
       .select(`
@@ -28,9 +28,9 @@ serve(async (req) => {
         beneficiary_id,
         withdrawal_deadline,
         withdrawal_exercised,
-        status
+        notice_status
       `)
-      .eq('status', 'sent')
+      .eq('notice_status', 'sent')
 
     if (fetchError) {
       console.error('Error fetching sent notices:', fetchError);
@@ -55,11 +55,11 @@ serve(async (req) => {
 
       // Check if deadline has passed
       if (notice.withdrawal_deadline < today) {
-        // Update notice status to expired
+        // Update notice_status to expired
         const { error: updateError } = await supabase
           .from('crummey_notices')
           .update({
-            status: 'expired',
+            notice_status: 'expired',
             updated_at: new Date().toISOString()
           })
           .eq('id', notice.id)

@@ -111,7 +111,7 @@ serve(async (req) => {
         withdrawal_deadline,
         withdrawal_amount,
         withdrawal_period_days,
-        status
+        notice_status
       `)
       .eq('id', notice_id)
       .single()
@@ -124,7 +124,7 @@ serve(async (req) => {
     }
 
     // Check if already sent
-    if (notice.status === 'sent') {
+    if (notice.notice_status === 'sent') {
       return new Response(
         JSON.stringify({
           error: 'Notice already sent',
@@ -220,12 +220,12 @@ serve(async (req) => {
       console.error('Error creating email log:', logError);
     }
 
-    // If email sending failed, update notice status to failed
+    // If email sending failed, update notice_status to failed
     if (!sendResult.success) {
       await supabase
         .from('crummey_notices')
         .update({
-          status: 'failed',
+          notice_status: 'failed',
           updated_at: new Date().toISOString()
         })
         .eq('id', notice_id)
@@ -240,11 +240,11 @@ serve(async (req) => {
       )
     }
 
-    // Update notice status to sent
+    // Update notice_status to sent
     const { data: updatedNotice, error: updateError } = await supabase
       .from('crummey_notices')
       .update({
-        status: 'sent',
+        notice_status: 'sent',
         sent_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -253,7 +253,7 @@ serve(async (req) => {
       .single()
 
     if (updateError) {
-      console.error('Error updating notice status:', updateError);
+      console.error('Error updating notice_status:', updateError);
     }
 
     return new Response(

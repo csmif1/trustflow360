@@ -110,7 +110,7 @@ serve(async (req) => {
     const todayStr = today.toISOString().split('T')[0];
     const futureDateStr = futureDate.toISOString().split('T')[0];
 
-    // Fetch all notices with status 'sent' that expire within the window
+    // Fetch all notices with notice_status 'sent' that expire within the window
     const { data: sentNotices, error: fetchError } = await supabase
       .from('crummey_notices')
       .select(`
@@ -121,7 +121,7 @@ serve(async (req) => {
         withdrawal_amount,
         notice_date
       `)
-      .eq('status', 'sent')
+      .eq('notice_status', 'sent')
       .gt('withdrawal_deadline', todayStr)
       .lte('withdrawal_deadline', futureDateStr)
 

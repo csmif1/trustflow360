@@ -17,7 +17,7 @@ Deno.test('Integration - Expires multiple past-deadline notices', async () => {
       id: 'notice-1',
       trust_id: 'trust-1',
       beneficiary_id: 'ben-1',
-      status: 'sent',
+      notice_status: 'sent',
       withdrawal_deadline: getDateOffset(-5), // 5 days ago
       withdrawal_exercised: false
     },
@@ -25,7 +25,7 @@ Deno.test('Integration - Expires multiple past-deadline notices', async () => {
       id: 'notice-2',
       trust_id: 'trust-1',
       beneficiary_id: 'ben-2',
-      status: 'sent',
+      notice_status: 'sent',
       withdrawal_deadline: getDateOffset(-1), // Yesterday
       withdrawal_exercised: false
     },
@@ -33,7 +33,7 @@ Deno.test('Integration - Expires multiple past-deadline notices', async () => {
       id: 'notice-3',
       trust_id: 'trust-2',
       beneficiary_id: 'ben-3',
-      status: 'sent',
+      notice_status: 'sent',
       withdrawal_deadline: getDateOffset(5), // Future - should NOT expire
       withdrawal_exercised: false
     }
@@ -41,7 +41,7 @@ Deno.test('Integration - Expires multiple past-deadline notices', async () => {
 
   const today = new Date().toISOString().split('T')[0];
   const shouldExpire = mockNotices.filter(n =>
-    n.status === 'sent' &&
+    n.notice_status === 'sent' &&
     !n.withdrawal_exercised &&
     n.withdrawal_deadline < today
   );
@@ -55,7 +55,7 @@ Deno.test('Integration - Skips notices with exercised withdrawal', async () => {
       id: 'notice-4',
       trust_id: 'trust-1',
       beneficiary_id: 'ben-1',
-      status: 'sent',
+      notice_status: 'sent',
       withdrawal_deadline: getDateOffset(-10),
       withdrawal_exercised: true // Beneficiary withdrew
     }
@@ -63,7 +63,7 @@ Deno.test('Integration - Skips notices with exercised withdrawal', async () => {
 
   const today = new Date().toISOString().split('T')[0];
   const shouldExpire = mockNotices.filter(n =>
-    n.status === 'sent' &&
+    n.notice_status === 'sent' &&
     !n.withdrawal_exercised &&
     n.withdrawal_deadline < today
   );

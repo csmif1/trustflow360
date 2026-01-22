@@ -13,13 +13,13 @@ Deno.test('Expire Crummey Notices - Notice past deadline gets expired', async ()
     id: 'notice-1',
     trust_id: 'trust-1',
     beneficiary_id: 'ben-1',
-    status: 'sent',
+    notice_status: 'sent',
     withdrawal_deadline: yesterdayStr,
     withdrawal_exercised: false
   };
 
   // Test that the function would update this notice to expired
-  assertEquals(mockNotice.status, 'sent');
+  assertEquals(mockNotice.notice_status, 'sent');
 
   const today = new Date().toISOString().split('T')[0];
   const isPastDeadline = mockNotice.withdrawal_deadline < today;
@@ -35,7 +35,7 @@ Deno.test('Expire Crummey Notices - Notice before deadline stays sent', async ()
     id: 'notice-2',
     trust_id: 'trust-1',
     beneficiary_id: 'ben-1',
-    status: 'sent',
+    notice_status: 'sent',
     withdrawal_deadline: tomorrowStr,
     withdrawal_exercised: false
   };
@@ -43,7 +43,7 @@ Deno.test('Expire Crummey Notices - Notice before deadline stays sent', async ()
   const today = new Date().toISOString().split('T')[0];
   const isPastDeadline = mockNotice.withdrawal_deadline < today;
   assertEquals(isPastDeadline, false);
-  assertEquals(mockNotice.status, 'sent'); // Should remain 'sent'
+  assertEquals(mockNotice.notice_status, 'sent'); // Should remain 'sent'
 });
 
 Deno.test('Expire Crummey Notices - Already expired notice is not modified', async () => {
@@ -55,13 +55,13 @@ Deno.test('Expire Crummey Notices - Already expired notice is not modified', asy
     id: 'notice-3',
     trust_id: 'trust-1',
     beneficiary_id: 'ben-1',
-    status: 'expired',
+    notice_status: 'expired',
     withdrawal_deadline: yesterdayStr,
     withdrawal_exercised: false
   };
 
   // Already expired notices should be skipped
-  assertEquals(mockNotice.status, 'expired');
+  assertEquals(mockNotice.notice_status, 'expired');
 });
 
 Deno.test('Expire Crummey Notices - Notice with withdrawal_exercised=true is not expired', async () => {
@@ -73,13 +73,13 @@ Deno.test('Expire Crummey Notices - Notice with withdrawal_exercised=true is not
     id: 'notice-4',
     trust_id: 'trust-1',
     beneficiary_id: 'ben-1',
-    status: 'sent',
+    notice_status: 'sent',
     withdrawal_deadline: yesterdayStr,
     withdrawal_exercised: true
   };
 
   // If beneficiary exercised withdrawal, don't expire
-  const shouldExpire = mockNotice.status === 'sent'
+  const shouldExpire = mockNotice.notice_status === 'sent'
     && !mockNotice.withdrawal_exercised;
   assertEquals(shouldExpire, false);
 });
@@ -105,13 +105,13 @@ Deno.test('Expire Crummey Notices - Idempotent operation', async () => {
     id: 'notice-5',
     trust_id: 'trust-1',
     beneficiary_id: 'ben-1',
-    status: 'expired',
+    notice_status: 'expired',
     withdrawal_deadline: yesterdayStr,
     withdrawal_exercised: false
   };
 
   // Running expiration again on already expired notice should be safe
-  const isAlreadyExpired = mockNotice.status === 'expired';
+  const isAlreadyExpired = mockNotice.notice_status === 'expired';
   assertEquals(isAlreadyExpired, true);
   // Function should skip this and not error
 });
