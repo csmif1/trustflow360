@@ -46,7 +46,7 @@ async function sendViaResend(params: {
         Authorization: `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
-        from: 'TrustFlow360 <notices@trustflow360.com>',
+        from: 'TrustFlow360 <onboarding@resend.dev>',
         to: params.to,
         subject: params.subject,
         html: params.html,
