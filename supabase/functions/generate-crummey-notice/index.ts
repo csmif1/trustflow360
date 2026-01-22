@@ -99,19 +99,18 @@ serve(async (req) => {
 
     const { notice_id } = validation.data!;
 
-    // Fetch notice details
+    // Fetch notice details with trust info via gift relationship
     const { data: notice, error: noticeError } = await supabase
       .from('crummey_notices')
       .select(`
         id,
-        trust_id,
         beneficiary_id,
         gift_id,
         notice_date,
         withdrawal_deadline,
         withdrawal_amount,
-        withdrawal_period_days,
-        notice_status
+        notice_status,
+        gifts!inner(trust_id)
       `)
       .eq('id', notice_id)
       .single()
@@ -162,7 +161,7 @@ serve(async (req) => {
     const { data: trust, error: trustError } = await supabase
       .from('trusts')
       .select('id, trust_name, trustee_name, trustee_email')
-      .eq('id', notice.trust_id)
+      .eq('id', notice.gifts?.trust_id)
       .single()
 
     if (trustError || !trust) {
@@ -172,6 +171,11 @@ serve(async (req) => {
       )
     }
 
+    // Calculate withdrawal period days from dates
+    const noticeDate = new Date(notice.notice_date);
+    const deadlineDate = new Date(notice.withdrawal_deadline);
+    const withdrawalPeriodDays = Math.ceil((deadlineDate.getTime() - noticeDate.getTime()) / (1000 * 60 * 60 * 24));
+
     // Generate email content
     const emailData: CrummeyNoticeData = {
       beneficiary_name: beneficiary.name,
@@ -179,7 +183,7 @@ serve(async (req) => {
       withdrawal_amount: parseFloat(notice.withdrawal_amount),
       notice_date: notice.notice_date,
       withdrawal_deadline: notice.withdrawal_deadline,
-      withdrawal_period_days: notice.withdrawal_period_days || 30,
+      withdrawal_period_days: withdrawalPeriodDays || 30,
       trustee_name: trust.trustee_name,
       trustee_email: trust.trustee_email
     };
@@ -201,7 +205,7 @@ serve(async (req) => {
       recipient_email: beneficiary.email,
       recipient_name: beneficiary.name,
       subject,
-      trust_id: notice.trust_id,
+      trust_id: notice.gifts?.trust_id || null,
       crummey_notice_id: notice_id,
       status: sendResult.success ? 'sent' : 'failed',
       sent_at: sendResult.success ? new Date().toISOString() : null,

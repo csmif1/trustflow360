@@ -20,15 +20,17 @@ serve(async (req) => {
     const today = new Date().toISOString().split('T')[0];
 
     // Fetch all notices with notice_status 'sent' that are past their deadline
+    // Join with gifts to get trust_id
     const { data: sentNotices, error: fetchError } = await supabase
       .from('crummey_notices')
       .select(`
         id,
-        trust_id,
+        gift_id,
         beneficiary_id,
         withdrawal_deadline,
-        withdrawal_exercised,
-        notice_status
+        acknowledged_at,
+        notice_status,
+        gifts!inner(trust_id)
       `)
       .eq('notice_status', 'sent')
 
@@ -48,8 +50,8 @@ serve(async (req) => {
     for (const notice of sentNotices || []) {
       totalChecked++;
 
-      // Skip if withdrawal was exercised
-      if (notice.withdrawal_exercised) {
+      // Skip if withdrawal was exercised (acknowledged)
+      if (notice.acknowledged_at) {
         continue;
       }
 
@@ -79,7 +81,7 @@ serve(async (req) => {
             recipient_email: 'system',
             recipient_name: 'System Event',
             subject: `Crummey Notice Expired - ID: ${notice.id}`,
-            trust_id: notice.trust_id,
+            trust_id: notice.gifts?.trust_id || null,
             crummey_notice_id: notice.id,
             status: 'sent',
             sent_at: new Date().toISOString(),
