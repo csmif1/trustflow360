@@ -99,18 +99,19 @@ serve(async (req) => {
 
     const { notice_id } = validation.data!;
 
-    // Fetch notice details with trust info via gift relationship
+    // Fetch notice details with trust info
     const { data: notice, error: noticeError } = await supabase
       .from('crummey_notices')
       .select(`
         id,
+        trust_id,
         beneficiary_id,
         gift_id,
         notice_date,
         withdrawal_deadline,
         withdrawal_amount,
-        notice_status,
-        gifts!inner(trust_id)
+        withdrawal_period_days,
+        status
       `)
       .eq('id', notice_id)
       .single()
@@ -123,7 +124,7 @@ serve(async (req) => {
     }
 
     // Check if already sent
-    if (notice.notice_status === 'sent') {
+    if (notice.status === 'sent') {
       return new Response(
         JSON.stringify({
           error: 'Notice already sent',
@@ -161,7 +162,7 @@ serve(async (req) => {
     const { data: trust, error: trustError } = await supabase
       .from('trusts')
       .select('id, trust_name, trustee_name, trustee_email')
-      .eq('id', notice.gifts?.trust_id)
+      .eq('id', notice.trust_id)
       .single()
 
     if (trustError || !trust) {
@@ -171,11 +172,6 @@ serve(async (req) => {
       )
     }
 
-    // Calculate withdrawal period days from dates
-    const noticeDate = new Date(notice.notice_date);
-    const deadlineDate = new Date(notice.withdrawal_deadline);
-    const withdrawalPeriodDays = Math.ceil((deadlineDate.getTime() - noticeDate.getTime()) / (1000 * 60 * 60 * 24));
-
     // Generate email content
     const emailData: CrummeyNoticeData = {
       beneficiary_name: beneficiary.name,
@@ -183,7 +179,7 @@ serve(async (req) => {
       withdrawal_amount: parseFloat(notice.withdrawal_amount),
       notice_date: notice.notice_date,
       withdrawal_deadline: notice.withdrawal_deadline,
-      withdrawal_period_days: withdrawalPeriodDays || 30,
+      withdrawal_period_days: notice.withdrawal_period_days || 30,
       trustee_name: trust.trustee_name,
       trustee_email: trust.trustee_email
     };
@@ -205,7 +201,7 @@ serve(async (req) => {
       recipient_email: beneficiary.email,
       recipient_name: beneficiary.name,
       subject,
-      trust_id: notice.gifts?.trust_id || null,
+      trust_id: notice.trust_id,
       crummey_notice_id: notice_id,
       status: sendResult.success ? 'sent' : 'failed',
       sent_at: sendResult.success ? new Date().toISOString() : null,
@@ -224,12 +220,12 @@ serve(async (req) => {
       console.error('Error creating email log:', logError);
     }
 
-    // If email sending failed, update notice_status to failed
+    // If email sending failed, update status to failed
     if (!sendResult.success) {
       await supabase
         .from('crummey_notices')
         .update({
-          notice_status: 'failed',
+          status: 'failed',
           updated_at: new Date().toISOString()
         })
         .eq('id', notice_id)
@@ -244,11 +240,11 @@ serve(async (req) => {
       )
     }
 
-    // Update notice_status to sent
+    // Update status to sent
     const { data: updatedNotice, error: updateError } = await supabase
       .from('crummey_notices')
       .update({
-        notice_status: 'sent',
+        status: 'sent',
         sent_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -257,7 +253,7 @@ serve(async (req) => {
       .single()
 
     if (updateError) {
-      console.error('Error updating notice_status:', updateError);
+      console.error('Error updating status:', updateError);
     }
 
     return new Response(

@@ -110,20 +110,19 @@ serve(async (req) => {
     const todayStr = today.toISOString().split('T')[0];
     const futureDateStr = futureDate.toISOString().split('T')[0];
 
-    // Fetch all notices with notice_status 'sent' that expire within the window
-    // Join with gifts to get trust_id
+    // Fetch all notices with status 'sent' that expire within the window
     const { data: sentNotices, error: fetchError } = await supabase
       .from('crummey_notices')
       .select(`
         id,
+        trust_id,
         gift_id,
         beneficiary_id,
         withdrawal_deadline,
         withdrawal_amount,
-        notice_date,
-        gifts!inner(trust_id)
+        notice_date
       `)
-      .eq('notice_status', 'sent')
+      .eq('status', 'sent')
       .gt('withdrawal_deadline', todayStr)
       .lte('withdrawal_deadline', futureDateStr)
 
@@ -174,7 +173,7 @@ serve(async (req) => {
       const { data: trust, error: trustError } = await supabase
         .from('trusts')
         .select('id, trust_name, trustee_name, trustee_email')
-        .eq('id', notice.gifts?.trust_id)
+        .eq('id', notice.trust_id)
         .single()
 
       if (trustError || !trust) {
@@ -221,7 +220,7 @@ serve(async (req) => {
         recipient_email: trust.trustee_email,
         recipient_name: trust.trustee_name,
         subject,
-        trust_id: notice.gifts?.trust_id || null,
+        trust_id: notice.trust_id,
         crummey_notice_id: notice.id,
         status: sendResult.success ? 'sent' : 'failed',
         sent_at: sendResult.success ? new Date().toISOString() : null,
