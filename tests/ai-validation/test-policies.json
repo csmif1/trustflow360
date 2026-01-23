@@ -1,0 +1,312 @@
+[
+  {
+    "test_id": "test-healthy",
+    "expected_status": "healthy",
+    "expected_score_range": [85, 100],
+    "expected_issues": [],
+    "policy": {
+      "id": "pol-001-healthy",
+      "policy_number": "NWM-2019-847562",
+      "carrier": "Northwestern Mutual",
+      "insured_name": "Robert Anderson",
+      "death_benefit": 5000000,
+      "annual_premium": 36000,
+      "cash_value": 142000,
+      "issue_date": "2019-03-15",
+      "status": "active"
+    },
+    "trust": {
+      "name": "Anderson Family ILIT",
+      "trust_assets": 125000,
+      "beneficiary_count": 3,
+      "type": "ILIT"
+    },
+    "payment_history": [
+      {
+        "date": "2022-03-10",
+        "amount": 36000,
+        "status": "on_time",
+        "days_from_due": -5
+      },
+      {
+        "date": "2023-03-12",
+        "amount": 36000,
+        "status": "on_time",
+        "days_from_due": -3
+      },
+      {
+        "date": "2024-03-08",
+        "amount": 36000,
+        "status": "on_time",
+        "days_from_due": -7
+      },
+      {
+        "date": "2025-03-14",
+        "amount": 36000,
+        "status": "on_time",
+        "days_from_due": -1
+      }
+    ],
+    "compliance": {
+      "crummey_notices_sent": 12,
+      "crummey_notices_required": 12,
+      "beneficiary_designations_match": true,
+      "trust_owns_policy": true,
+      "beneficiary_mismatch_details": null
+    },
+    "upcoming": {
+      "next_premium_due": "2026-03-15",
+      "days_until_due": 51,
+      "days_overdue": null,
+      "premium_amount": 36000
+    }
+  },
+  {
+    "test_id": "test-warning-late-payments",
+    "expected_status": "warning",
+    "expected_score_range": [60, 75],
+    "expected_issues": ["payment_pattern"],
+    "policy": {
+      "id": "pol-002-late",
+      "policy_number": "MM-2018-923445",
+      "carrier": "MassMutual",
+      "insured_name": "Jennifer Chen",
+      "death_benefit": 3000000,
+      "annual_premium": 24000,
+      "cash_value": 98000,
+      "issue_date": "2018-06-20",
+      "status": "active"
+    },
+    "trust": {
+      "name": "Chen Family ILIT",
+      "trust_assets": 85000,
+      "beneficiary_count": 2,
+      "type": "ILIT"
+    },
+    "payment_history": [
+      {
+        "date": "2022-06-20",
+        "amount": 24000,
+        "status": "on_time",
+        "days_from_due": 0
+      },
+      {
+        "date": "2023-06-28",
+        "amount": 24000,
+        "status": "late",
+        "days_from_due": 8
+      },
+      {
+        "date": "2024-07-05",
+        "amount": 24000,
+        "status": "late",
+        "days_from_due": 15
+      },
+      {
+        "date": "2025-07-15",
+        "amount": 24000,
+        "status": "late",
+        "days_from_due": 25
+      }
+    ],
+    "compliance": {
+      "crummey_notices_sent": 8,
+      "crummey_notices_required": 8,
+      "beneficiary_designations_match": true,
+      "trust_owns_policy": true,
+      "beneficiary_mismatch_details": null
+    },
+    "upcoming": {
+      "next_premium_due": "2026-06-20",
+      "days_until_due": 148,
+      "days_overdue": null,
+      "premium_amount": 24000
+    }
+  },
+  {
+    "test_id": "test-warning-underfunded",
+    "expected_status": "warning",
+    "expected_score_range": [55, 80],
+    "expected_issues": ["insufficient_funds"],
+    "policy": {
+      "id": "pol-003-underfunded",
+      "policy_number": "PNFN-2020-651823",
+      "carrier": "Penn Mutual",
+      "insured_name": "David Martinez",
+      "death_benefit": 2500000,
+      "annual_premium": 36000,
+      "cash_value": 75000,
+      "issue_date": "2020-09-10",
+      "status": "active"
+    },
+    "trust": {
+      "name": "Martinez Family ILIT",
+      "trust_assets": 22000,
+      "beneficiary_count": 4,
+      "type": "ILIT"
+    },
+    "payment_history": [
+      {
+        "date": "2022-09-08",
+        "amount": 36000,
+        "status": "on_time",
+        "days_from_due": -2
+      },
+      {
+        "date": "2023-09-09",
+        "amount": 36000,
+        "status": "on_time",
+        "days_from_due": -1
+      },
+      {
+        "date": "2024-09-10",
+        "amount": 36000,
+        "status": "on_time",
+        "days_from_due": 0
+      },
+      {
+        "date": "2025-09-09",
+        "amount": 36000,
+        "status": "on_time",
+        "days_from_due": -1
+      }
+    ],
+    "compliance": {
+      "crummey_notices_sent": 16,
+      "crummey_notices_required": 16,
+      "beneficiary_designations_match": true,
+      "trust_owns_policy": true,
+      "beneficiary_mismatch_details": null
+    },
+    "upcoming": {
+      "next_premium_due": "2026-09-10",
+      "days_until_due": 231,
+      "days_overdue": null,
+      "premium_amount": 36000
+    }
+  },
+  {
+    "test_id": "test-critical-delinquent",
+    "expected_status": "critical",
+    "expected_score_range": [20, 40],
+    "expected_issues": ["premium_delinquent", "lapse_risk"],
+    "policy": {
+      "id": "pol-004-delinquent",
+      "policy_number": "PAC-2017-394756",
+      "carrier": "Pacific Life",
+      "insured_name": "Susan Williams",
+      "death_benefit": 1500000,
+      "annual_premium": 15000,
+      "cash_value": 48000,
+      "issue_date": "2017-11-18",
+      "status": "grace_period"
+    },
+    "trust": {
+      "name": "Williams Family ILIT",
+      "trust_assets": 3500,
+      "beneficiary_count": 2,
+      "type": "ILIT"
+    },
+    "payment_history": [
+      {
+        "date": "2022-11-25",
+        "amount": 15000,
+        "status": "late",
+        "days_from_due": 7
+      },
+      {
+        "date": "2023-12-03",
+        "amount": 15000,
+        "status": "late",
+        "days_from_due": 15
+      },
+      {
+        "date": "2024-12-20",
+        "amount": 15000,
+        "status": "late",
+        "days_from_due": 32
+      },
+      {
+        "date": null,
+        "amount": null,
+        "status": "missed",
+        "days_from_due": null
+      }
+    ],
+    "compliance": {
+      "crummey_notices_sent": 6,
+      "crummey_notices_required": 8,
+      "beneficiary_designations_match": true,
+      "trust_owns_policy": true,
+      "beneficiary_mismatch_details": null
+    },
+    "upcoming": {
+      "next_premium_due": "2025-11-18",
+      "days_until_due": null,
+      "days_overdue": 67,
+      "premium_amount": 15000
+    }
+  },
+  {
+    "test_id": "test-critical-compliance",
+    "expected_status": "critical",
+    "expected_score_range": [30, 45],
+    "expected_issues": ["crummey_violation", "beneficiary_mismatch"],
+    "policy": {
+      "id": "pol-005-compliance",
+      "policy_number": "TRANS-2021-582934",
+      "carrier": "Transamerica",
+      "insured_name": "Michael Thompson",
+      "death_benefit": 4000000,
+      "annual_premium": 42000,
+      "cash_value": 112000,
+      "issue_date": "2021-04-05",
+      "status": "active"
+    },
+    "trust": {
+      "name": "Thompson Family ILIT",
+      "trust_assets": 160000,
+      "beneficiary_count": 3,
+      "type": "ILIT"
+    },
+    "payment_history": [
+      {
+        "date": "2022-04-03",
+        "amount": 42000,
+        "status": "on_time",
+        "days_from_due": -2
+      },
+      {
+        "date": "2023-04-04",
+        "amount": 42000,
+        "status": "on_time",
+        "days_from_due": -1
+      },
+      {
+        "date": "2024-04-05",
+        "amount": 42000,
+        "status": "on_time",
+        "days_from_due": 0
+      },
+      {
+        "date": "2025-04-03",
+        "amount": 42000,
+        "status": "on_time",
+        "days_from_due": -2
+      }
+    ],
+    "compliance": {
+      "crummey_notices_sent": 4,
+      "crummey_notices_required": 12,
+      "beneficiary_designations_match": false,
+      "trust_owns_policy": true,
+      "beneficiary_mismatch_details": "Policy beneficiary lists 'Estate of Michael Thompson' instead of 'Thompson Family ILIT'. This violates ILIT structure and could trigger estate taxation."
+    },
+    "upcoming": {
+      "next_premium_due": "2026-04-05",
+      "days_until_due": 72,
+      "days_overdue": null,
+      "premium_amount": 42000
+    }
+  }
+]
