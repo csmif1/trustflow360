@@ -6,6 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Activity,
   AlertTriangle,
@@ -16,7 +19,10 @@ import {
   TrendingDown,
   Minus,
   Calendar,
-  FileText
+  FileText,
+  UserPlus,
+  User,
+  X
 } from 'lucide-react';
 
 // Initialize Supabase client
@@ -77,6 +83,11 @@ interface RemediationAction {
   due_date: string;
   email_alert_sent: boolean;
   created_at: string;
+  assigned_to?: string;
+  assigned_to_name?: string;
+  assigned_to_email?: string;
+  assigned_at?: string;
+  assigned_by?: string;
 }
 
 const PolicyHealth: React.FC = () => {
@@ -87,6 +98,12 @@ const PolicyHealth: React.FC = () => {
   const [runningCheck, setRunningCheck] = useState<string | null>(null);
   const [selectedPolicy, setSelectedPolicy] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'healthy' | 'warning' | 'critical'>('all');
+  const [assigningAction, setAssigningAction] = useState<string | null>(null);
+  const [showAssignDialog, setShowAssignDialog] = useState(false);
+  const [selectedAction, setSelectedAction] = useState<RemediationAction | null>(null);
+  const [assigneeName, setAssigneeName] = useState('');
+  const [assigneeEmail, setAssigneeEmail] = useState('');
+  const [actionFilter, setActionFilter] = useState<'all' | 'my' | 'unassigned'>('all');
 
   useEffect(() => {
     fetchData();
@@ -178,6 +195,71 @@ const PolicyHealth: React.FC = () => {
       showToast('Failed to run health check', 'error');
     } finally {
       setRunningCheck(null);
+    }
+  };
+
+  const openAssignDialog = (action: RemediationAction) => {
+    setSelectedAction(action);
+    setAssigneeName(action.assigned_to_name || '');
+    setAssigneeEmail(action.assigned_to_email || '');
+    setShowAssignDialog(true);
+  };
+
+  const closeAssignDialog = () => {
+    setShowAssignDialog(false);
+    setSelectedAction(null);
+    setAssigneeName('');
+    setAssigneeEmail('');
+  };
+
+  const assignAction = async () => {
+    if (!selectedAction || !assigneeName || !assigneeEmail) {
+      showToast('Please enter both name and email', 'error');
+      return;
+    }
+
+    setAssigningAction(selectedAction.id);
+    try {
+      const response = await fetch(
+        'https://fnivqabphgbmkzpwowwg.supabase.co/functions/v1/assign-action',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${supabaseAnonKey}`
+          },
+          body: JSON.stringify({
+            action_id: selectedAction.id,
+            assigned_to_name: assigneeName,
+            assigned_to_email: assigneeEmail
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to assign action');
+      }
+
+      const result = await response.json();
+      console.log('Assignment result:', result);
+
+      // Refresh data
+      await fetchData();
+
+      showToast(
+        result.email_sent
+          ? 'Action assigned and notification sent'
+          : 'Action assigned (email notification failed)',
+        'success'
+      );
+
+      closeAssignDialog();
+    } catch (error) {
+      console.error('Error assigning action:', error);
+      showToast('Failed to assign action', 'error');
+    } finally {
+      setAssigningAction(null);
     }
   };
 
@@ -468,6 +550,25 @@ const PolicyHealth: React.FC = () => {
 
         {/* Remediation Actions Tab */}
         <TabsContent value="actions" className="space-y-4">
+          {/* Action Filters */}
+          <div className="flex gap-2">
+            <Button
+              variant={actionFilter === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActionFilter('all')}
+            >
+              All Actions
+            </Button>
+            <Button
+              variant={actionFilter === 'unassigned' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActionFilter('unassigned')}
+            >
+              <UserPlus className="w-4 h-4 mr-1" />
+              Unassigned
+            </Button>
+          </div>
+
           {remediationActions.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center h-64">
@@ -478,7 +579,12 @@ const PolicyHealth: React.FC = () => {
             </Card>
           ) : (
             <div className="space-y-4">
-              {remediationActions.map(action => {
+              {remediationActions
+                .filter(action => {
+                  if (actionFilter === 'unassigned') return !action.assigned_to_email;
+                  return true;
+                })
+                .map(action => {
                 const policy = policies.find(p => p.id === action.policy_id);
                 const daysUntilDue = Math.ceil((new Date(action.due_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
                 const isOverdue = daysUntilDue < 0;
@@ -497,7 +603,7 @@ const PolicyHealth: React.FC = () => {
                   <Card key={action.id} className={isOverdue ? 'border-red-500 border-2' : ''}>
                     <CardHeader>
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Badge variant={getPriorityColor(action.priority)}>
                             {action.priority}
                           </Badge>
@@ -506,6 +612,12 @@ const PolicyHealth: React.FC = () => {
                           )}
                           {isUrgent && !isOverdue && (
                             <Badge variant="outline" className="border-red-500 text-red-500">URGENT</Badge>
+                          )}
+                          {action.assigned_to_name && (
+                            <Badge variant="secondary" className="flex items-center gap-1">
+                              <User className="w-3 h-3" />
+                              {action.assigned_to_name}
+                            </Badge>
                           )}
                         </div>
                         <span className="text-sm text-muted-foreground">
@@ -527,6 +639,14 @@ const PolicyHealth: React.FC = () => {
                           </span>
                         </div>
                         <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant={action.assigned_to_name ? 'outline' : 'default'}
+                            onClick={() => openAssignDialog(action)}
+                          >
+                            <UserPlus className="w-4 h-4 mr-1" />
+                            {action.assigned_to_name ? 'Reassign' : 'Assign'}
+                          </Button>
                           <Button size="sm" variant="outline">
                             View Details
                           </Button>
@@ -543,6 +663,82 @@ const PolicyHealth: React.FC = () => {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Assignment Dialog */}
+      <Dialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Remediation Action</DialogTitle>
+            <DialogDescription>
+              Assign this action to a team member. They will receive an email notification with action details.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedAction && (
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Action:</span>
+                  <span className="text-sm">{selectedAction.title}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Priority:</span>
+                  <Badge variant="outline">{selectedAction.priority}</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Due Date:</span>
+                  <span className="text-sm">{new Date(selectedAction.due_date).toLocaleDateString()}</span>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="assignee-name">Team Member Name</Label>
+                  <Input
+                    id="assignee-name"
+                    placeholder="e.g., Jane Smith"
+                    value={assigneeName}
+                    onChange={(e) => setAssigneeName(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="assignee-email">Email Address</Label>
+                  <Input
+                    id="assignee-email"
+                    type="email"
+                    placeholder="e.g., jane@firm.com"
+                    value={assigneeEmail}
+                    onChange={(e) => setAssigneeEmail(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closeAssignDialog}>
+              Cancel
+            </Button>
+            <Button
+              onClick={assignAction}
+              disabled={!!assigningAction || !assigneeName || !assigneeEmail}
+            >
+              {assigningAction ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Assigning...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Assign & Notify
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
