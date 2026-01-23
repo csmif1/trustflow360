@@ -120,7 +120,7 @@
   }
 
   .card-hover {
-    @apply transition-all duration-200 hover:shadow-hover hover:-translate-y-0.5;
+    @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5;
   }
 
   /* Button hover effects */
