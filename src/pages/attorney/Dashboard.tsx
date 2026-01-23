@@ -27,6 +27,7 @@ import CrummeyNotices from './CrummeyNotices';
 import WorkflowDashboard from "@/components/WorkflowDashboard";
 import EmailLogs from './EmailLogs';
 import Policies from './Policies';
+import PolicyHealth from './PolicyHealth';
 
 // Initialize Supabase client
 const supabaseUrl = 'https://fnivqabphgbmkzpwowwg.supabase.co';
@@ -84,6 +85,7 @@ export default function AttorneyDashboard() {
   const CrummeyNoticesComponent = () => <CrummeyNotices />;
   const EmailLogsComponent = () => <EmailLogs />;
   const PoliciesComponent = () => <Policies />;
+  const PolicyHealthComponent = () => <PolicyHealth />;
 
   useEffect(() => {
     fetchDashboardData();
@@ -278,10 +280,11 @@ export default function AttorneyDashboard() {
         {/* Main Action Tabs */}
         <div>
           <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-            <TabsList className="grid grid-cols-8 w-full lg:w-auto">
+            <TabsList className="grid grid-cols-9 w-full lg:w-auto">
               <TabsTrigger value="quick-actions">Quick Actions</TabsTrigger>
               <TabsTrigger value="trusts">Trusts</TabsTrigger>
               <TabsTrigger value="policies">Policies</TabsTrigger>
+              <TabsTrigger value="policy-health">Policy Health</TabsTrigger>
               <TabsTrigger value="documents">Documents</TabsTrigger>
               <TabsTrigger value="compliance">Compliance</TabsTrigger>
               <TabsTrigger value="tax-reports">Tax Reports</TabsTrigger>
@@ -400,6 +403,10 @@ export default function AttorneyDashboard() {
 
             <TabsContent value="policies">
               <PoliciesComponent />
+            </TabsContent>
+
+            <TabsContent value="policy-health">
+              <PolicyHealthComponent />
             </TabsContent>
 
             <TabsContent value="documents">
