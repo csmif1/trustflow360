@@ -3,11 +3,8 @@
 -- Runs at 2 AM ET (7 AM UTC during EST, 6 AM UTC during EDT)
 -- =====================================================================
 
--- Enable pg_cron extension if not already enabled
-CREATE EXTENSION IF NOT EXISTS pg_cron;
-
--- Enable pg_net extension for HTTP requests
-CREATE EXTENSION IF NOT EXISTS pg_net;
+-- Note: pg_cron and pg_net extensions are already enabled in Supabase
+-- No need to create them again
 
 -- Drop existing cron job if it exists (for re-running migration)
 SELECT cron.unschedule('daily-policy-health-checks')
