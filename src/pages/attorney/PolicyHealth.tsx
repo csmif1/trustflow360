@@ -9,6 +9,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Activity,
   AlertTriangle,
@@ -22,7 +24,8 @@ import {
   FileText,
   UserPlus,
   User,
-  X
+  X,
+  Check
 } from 'lucide-react';
 
 // Initialize Supabase client
@@ -88,6 +91,9 @@ interface RemediationAction {
   assigned_to_email?: string;
   assigned_at?: string;
   assigned_by?: string;
+  completed_at?: string;
+  completed_by?: string;
+  completion_notes?: string;
 }
 
 const PolicyHealth: React.FC = () => {
@@ -104,6 +110,10 @@ const PolicyHealth: React.FC = () => {
   const [assigneeName, setAssigneeName] = useState('');
   const [assigneeEmail, setAssigneeEmail] = useState('');
   const [actionFilter, setActionFilter] = useState<'all' | 'my' | 'unassigned'>('all');
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [completionNotes, setCompletionNotes] = useState('');
+  const [completingAction, setCompletingAction] = useState(false);
+  const [selectedActionIds, setSelectedActionIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchData();
@@ -260,6 +270,104 @@ const PolicyHealth: React.FC = () => {
       showToast('Failed to assign action', 'error');
     } finally {
       setAssigningAction(null);
+    }
+  };
+
+  const openCompleteDialog = (action: RemediationAction | null = null) => {
+    if (action) {
+      setSelectedAction(action);
+      setSelectedActionIds(new Set([action.id]));
+    }
+    setCompletionNotes('');
+    setShowCompleteDialog(true);
+  };
+
+  const closeCompleteDialog = () => {
+    setShowCompleteDialog(false);
+    setSelectedAction(null);
+    setCompletionNotes('');
+    if (selectedActionIds.size > 1) {
+      setSelectedActionIds(new Set());
+    }
+  };
+
+  const completeActions = async () => {
+    if (!completionNotes.trim()) {
+      showToast('Please enter completion notes', 'error');
+      return;
+    }
+
+    if (completionNotes.length > 500) {
+      showToast('Notes must be 500 characters or less', 'error');
+      return;
+    }
+
+    setCompletingAction(true);
+    try {
+      const actionIdsArray = Array.from(selectedActionIds);
+      const isBulk = actionIdsArray.length > 1;
+
+      const response = await fetch(
+        'https://fnivqabphgbmkzpwowwg.supabase.co/functions/v1/complete-action',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${supabaseAnonKey}`
+          },
+          body: JSON.stringify(
+            isBulk
+              ? { action_ids: actionIdsArray, notes: completionNotes.trim() }
+              : { action_id: actionIdsArray[0], notes: completionNotes.trim() }
+          )
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to complete action(s)');
+      }
+
+      const result = await response.json();
+      console.log('Completion result:', result);
+
+      // Refresh data
+      await fetchData();
+
+      showToast(
+        isBulk
+          ? `Successfully completed ${actionIdsArray.length} action(s)`
+          : 'Action completed successfully',
+        'success'
+      );
+
+      closeCompleteDialog();
+      setSelectedActionIds(new Set());
+    } catch (error) {
+      console.error('Error completing action(s):', error);
+      showToast(error.message || 'Failed to complete action(s)', 'error');
+    } finally {
+      setCompletingAction(false);
+    }
+  };
+
+  const toggleActionSelection = (actionId: string) => {
+    const newSelection = new Set(selectedActionIds);
+    if (newSelection.has(actionId)) {
+      newSelection.delete(actionId);
+    } else {
+      newSelection.add(actionId);
+    }
+    setSelectedActionIds(newSelection);
+  };
+
+  const toggleSelectAll = () => {
+    const pendingActions = remediationActions.filter(a => a.status !== 'completed');
+    if (selectedActionIds.size === pendingActions.length) {
+      setSelectedActionIds(new Set());
+    } else {
+      setSelectedActionIds(new Set(pendingActions.map(a => a.id)));
     }
   };
 
@@ -550,24 +658,49 @@ const PolicyHealth: React.FC = () => {
 
         {/* Remediation Actions Tab */}
         <TabsContent value="actions" className="space-y-4">
-          {/* Action Filters */}
-          <div className="flex gap-2">
-            <Button
-              variant={actionFilter === 'all' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setActionFilter('all')}
-            >
-              All Actions
-            </Button>
-            <Button
-              variant={actionFilter === 'unassigned' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setActionFilter('unassigned')}
-            >
-              <UserPlus className="w-4 h-4 mr-1" />
-              Unassigned
-            </Button>
+          {/* Action Filters and Bulk Actions */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex gap-2">
+              <Button
+                variant={actionFilter === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActionFilter('all')}
+              >
+                All Actions
+              </Button>
+              <Button
+                variant={actionFilter === 'unassigned' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActionFilter('unassigned')}
+              >
+                <UserPlus className="w-4 h-4 mr-1" />
+                Unassigned
+              </Button>
+            </div>
+            {selectedActionIds.size > 0 && (
+              <Button
+                size="sm"
+                variant="default"
+                onClick={() => openCompleteDialog()}
+              >
+                <Check className="w-4 h-4 mr-2" />
+                Complete Selected ({selectedActionIds.size})
+              </Button>
+            )}
           </div>
+
+          {/* Bulk Selection Header */}
+          {remediationActions.filter(a => a.status !== 'completed').length > 0 && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-lg">
+              <Checkbox
+                checked={selectedActionIds.size === remediationActions.filter(a => a.status !== 'completed').length}
+                onCheckedChange={toggleSelectAll}
+              />
+              <span className="text-sm text-muted-foreground">
+                Select all pending actions
+              </span>
+            </div>
+          )}
 
           {remediationActions.length === 0 ? (
             <Card>
@@ -599,61 +732,118 @@ const PolicyHealth: React.FC = () => {
                   }
                 };
 
+                const isCompleted = action.status === 'completed';
+
                 return (
-                  <Card key={action.id} className={isOverdue ? 'border-red-500 border-2' : ''}>
+                  <Card
+                    key={action.id}
+                    className={`${
+                      isCompleted
+                        ? 'bg-gray-50 opacity-75'
+                        : isOverdue
+                        ? 'border-red-500 border-2'
+                        : ''
+                    }`}
+                  >
                     <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge variant={getPriorityColor(action.priority)}>
-                            {action.priority}
-                          </Badge>
-                          {isOverdue && (
-                            <Badge variant="destructive">OVERDUE</Badge>
-                          )}
-                          {isUrgent && !isOverdue && (
-                            <Badge variant="outline" className="border-red-500 text-red-500">URGENT</Badge>
-                          )}
-                          {action.assigned_to_name && (
-                            <Badge variant="secondary" className="flex items-center gap-1">
-                              <User className="w-3 h-3" />
-                              {action.assigned_to_name}
-                            </Badge>
-                          )}
+                      <div className="flex items-start gap-3">
+                        {!isCompleted && (
+                          <Checkbox
+                            checked={selectedActionIds.has(action.id)}
+                            onCheckedChange={() => toggleActionSelection(action.id)}
+                            className="mt-1"
+                          />
+                        )}
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {isCompleted && (
+                                <Badge variant="outline" className="bg-green-50 border-green-500 text-green-700">
+                                  <CheckCircle className="w-3 h-3 mr-1" />
+                                  Completed
+                                </Badge>
+                              )}
+                              <Badge variant={getPriorityColor(action.priority)}>
+                                {action.priority}
+                              </Badge>
+                              {!isCompleted && isOverdue && (
+                                <Badge variant="destructive">OVERDUE</Badge>
+                              )}
+                              {!isCompleted && isUrgent && !isOverdue && (
+                                <Badge variant="outline" className="border-red-500 text-red-500">URGENT</Badge>
+                              )}
+                              {action.assigned_to_name && (
+                                <Badge variant="secondary" className="flex items-center gap-1">
+                                  <User className="w-3 h-3" />
+                                  {action.assigned_to_name}
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-sm text-muted-foreground">
+                              {policy?.policy_number}
+                            </span>
+                          </div>
+                          <CardTitle className="text-lg">{action.title}</CardTitle>
+                          <CardDescription>
+                            {policy?.trusts.trust_name}
+                          </CardDescription>
                         </div>
-                        <span className="text-sm text-muted-foreground">
-                          {policy?.policy_number}
-                        </span>
                       </div>
-                      <CardTitle className="text-lg">{action.title}</CardTitle>
-                      <CardDescription>
-                        {policy?.trusts.trust_name}
-                      </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-muted-foreground" />
-                          <span className={isOverdue ? 'text-red-500 font-medium' : 'text-muted-foreground'}>
-                            Due: {new Date(action.due_date).toLocaleDateString()}
-                            {isOverdue ? ` (${Math.abs(daysUntilDue)} days overdue)` : ` (${daysUntilDue} days)`}
-                          </span>
+                      <div className="space-y-3">
+                        {/* Due Date / Completion Info */}
+                        <div className="flex items-center gap-2 text-sm">
+                          {isCompleted ? (
+                            <>
+                              <CheckCircle className="w-4 h-4 text-green-500" />
+                              <span className="text-muted-foreground">
+                                Completed: {new Date(action.completed_at!).toLocaleDateString()}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <Clock className="w-4 h-4 text-muted-foreground" />
+                              <span className={isOverdue ? 'text-red-500 font-medium' : 'text-muted-foreground'}>
+                                Due: {new Date(action.due_date).toLocaleDateString()}
+                                {isOverdue ? ` (${Math.abs(daysUntilDue)} days overdue)` : ` (${daysUntilDue} days)`}
+                              </span>
+                            </>
+                          )}
                         </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant={action.assigned_to_name ? 'outline' : 'default'}
-                            onClick={() => openAssignDialog(action)}
-                          >
-                            <UserPlus className="w-4 h-4 mr-1" />
-                            {action.assigned_to_name ? 'Reassign' : 'Assign'}
-                          </Button>
-                          <Button size="sm" variant="outline">
-                            View Details
-                          </Button>
-                          <Button size="sm">
-                            Mark Complete
-                          </Button>
-                        </div>
+
+                        {/* Completion Notes */}
+                        {isCompleted && action.completion_notes && (
+                          <div className="bg-white p-3 rounded border border-gray-200">
+                            <p className="text-xs font-medium text-gray-500 mb-1">Completion Notes:</p>
+                            <p className="text-sm text-gray-700">{action.completion_notes}</p>
+                          </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        {!isCompleted && (
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              size="sm"
+                              variant={action.assigned_to_name ? 'outline' : 'default'}
+                              onClick={() => openAssignDialog(action)}
+                            >
+                              <UserPlus className="w-4 h-4 mr-1" />
+                              {action.assigned_to_name ? 'Reassign' : 'Assign'}
+                            </Button>
+                            <Button size="sm" variant="outline">
+                              View Details
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => openCompleteDialog(action)}
+                            >
+                              <Check className="w-4 h-4 mr-1" />
+                              Mark Complete
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -733,6 +923,88 @@ const PolicyHealth: React.FC = () => {
                 <>
                   <UserPlus className="w-4 h-4 mr-2" />
                   Assign & Notify
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Completion Dialog */}
+      <Dialog open={showCompleteDialog} onOpenChange={setShowCompleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {selectedActionIds.size > 1
+                ? `Complete ${selectedActionIds.size} Actions`
+                : 'Complete Remediation Action'}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedActionIds.size > 1
+                ? 'Add notes describing how these actions were resolved. Notes are required for audit trail compliance.'
+                : 'Add notes describing how this action was resolved. Notes are required for audit trail compliance.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {selectedAction && selectedActionIds.size === 1 && (
+              <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Action:</span>
+                  <span className="text-sm">{selectedAction.title}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Trust:</span>
+                  <span className="text-sm text-muted-foreground">
+                    {policies.find(p => p.id === selectedAction.policy_id)?.trusts.trust_name}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Priority:</span>
+                  <Badge variant="outline">{selectedAction.priority}</Badge>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="completion-notes">
+                Completion Notes <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                id="completion-notes"
+                placeholder="Describe how this was resolved (e.g., 'Premium payment confirmed via check #1234. Deposited 1/23/26.')"
+                value={completionNotes}
+                onChange={(e) => setCompletionNotes(e.target.value)}
+                rows={4}
+                maxLength={500}
+                className="resize-none"
+              />
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Required for compliance documentation</span>
+                <span className={completionNotes.length > 450 ? 'text-amber-600 font-medium' : ''}>
+                  {completionNotes.length}/500
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closeCompleteDialog}>
+              Cancel
+            </Button>
+            <Button
+              onClick={completeActions}
+              disabled={completingAction || !completionNotes.trim()}
+            >
+              {completingAction ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Completing...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  {selectedActionIds.size > 1 ? `Complete ${selectedActionIds.size} Actions` : 'Complete Action'}
                 </>
               )}
             </Button>
