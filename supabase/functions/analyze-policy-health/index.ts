@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { Resend } from 'https://esm.sh/resend@2.0.0'
+import type { RemediationAlertData } from '../_shared/email-templates.ts'
+import { generateRemediationAlertHTML, generateRemediationAlertText } from '../_shared/email-templates.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -711,15 +714,84 @@ serve(async (req) => {
         };
       });
 
+    let remediationActionsCreated = 0;
+    let emailAlertSent = false;
+
     if (criticalActions.length > 0) {
-      const { error: actionsError } = await supabase
+      const { data: createdActions, error: actionsError } = await supabase
         .from('remediation_actions')
-        .insert(criticalActions);
+        .insert(criticalActions)
+        .select();
 
       if (actionsError) {
         console.error('Error creating remediation actions:', actionsError);
       } else {
-        console.log(`[STEP 6] Created ${criticalActions.length} remediation actions`);
+        remediationActionsCreated = createdActions.length;
+        console.log(`[STEP 6] Created ${remediationActionsCreated} remediation actions`);
+
+        // STEP 7: Send remediation alert email to trustee
+        if (policyData.trust.trustee_email && createdActions.length > 0) {
+          try {
+            console.log(`[STEP 7] Sending remediation alert to ${policyData.trust.trustee_email}`);
+
+            const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+
+            // Prepare email data
+            const emailData: RemediationAlertData = {
+              trustee_name: policyData.trust.trustee_name || 'Trustee',
+              trustee_email: policyData.trust.trustee_email,
+              trust_name: policyData.trust.trust_name,
+              policy_number: policyData.policy.policy_number,
+              carrier: policyData.policy.carrier,
+              overall_status: overallStatus,
+              health_score: healthScore,
+              check_date: new Date().toISOString(),
+              issues: allIssues
+                .filter(i => i.severity === 'critical' || i.severity === 'high')
+                .map(i => ({
+                  type: i.type,
+                  severity: i.severity,
+                  description: i.description
+                })),
+              remediation_actions: createdActions.map((action: any) => ({
+                title: action.title,
+                action_type: action.action_type,
+                priority: action.priority,
+                due_date: action.due_date,
+                days_until_due: Math.ceil((new Date(action.due_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+              }))
+            };
+
+            const htmlContent = generateRemediationAlertHTML(emailData);
+            const textContent = generateRemediationAlertText(emailData);
+
+            const result = await resend.emails.send({
+              from: 'TrustFlow360 <alerts@trustflow360.com>',
+              to: [policyData.trust.trustee_email],
+              subject: `[${overallStatus.toUpperCase()}] Policy Health Alert - ${policyData.trust.trust_name}`,
+              html: htmlContent,
+              text: textContent
+            });
+
+            if (result.error) {
+              console.error('Error sending remediation alert:', result.error);
+            } else {
+              console.log(`[STEP 7] Remediation alert sent successfully. Email ID: ${result.data?.id}`);
+              emailAlertSent = true;
+
+              // Update remediation actions to mark email sent
+              const actionIds = createdActions.map((a: any) => a.id);
+              await supabase
+                .from('remediation_actions')
+                .update({ email_alert_sent: true })
+                .in('id', actionIds);
+            }
+          } catch (emailError) {
+            console.error('Error sending remediation alert email:', emailError);
+          }
+        } else {
+          console.log('[STEP 7] No trustee email configured, skipping alert');
+        }
       }
     }
 
@@ -728,7 +800,8 @@ serve(async (req) => {
     console.log(`Overall Status: ${overallStatus.toUpperCase()}`);
     console.log(`Health Score: ${healthScore}/100`);
     console.log(`Issues Found: ${allIssues.length}`);
-    console.log(`Remediation Actions: ${criticalActions.length}`);
+    console.log(`Remediation Actions: ${remediationActionsCreated}`);
+    console.log(`Email Alert Sent: ${emailAlertSent}`);
     console.log('='.repeat(60));
 
     return new Response(
@@ -739,7 +812,9 @@ serve(async (req) => {
         health_score: healthScore,
         component_scores: ruleBasedAnalysis.scores,
         issues_count: allIssues.length,
-        remediation_actions_created: criticalActions.length,
+        remediation_actions_created: remediationActionsCreated,
+        email_alert_sent: emailAlertSent,
+        trustee_email: policyData.trust.trustee_email || null,
         ai_confidence: aiAnalysis.aiConfidence,
         execution_timestamp: new Date().toISOString()
       }),

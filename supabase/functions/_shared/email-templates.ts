@@ -40,6 +40,29 @@ export interface PremiumReminderData {
   is_sufficient: boolean;
 }
 
+export interface RemediationAlertData {
+  trustee_name: string;
+  trustee_email: string;
+  trust_name: string;
+  policy_number: string;
+  carrier: string;
+  overall_status: 'healthy' | 'warning' | 'critical';
+  health_score: number;
+  check_date: string;
+  issues: Array<{
+    type: string;
+    severity: 'low' | 'medium' | 'high' | 'critical';
+    description: string;
+  }>;
+  remediation_actions: Array<{
+    title: string;
+    action_type: string;
+    priority: 'low' | 'medium' | 'high' | 'urgent';
+    due_date: string;
+    days_until_due: number;
+  }>;
+}
+
 // ============================================================================
 // CRUMMEY NOTICE TEMPLATE
 // ============================================================================
@@ -649,5 +672,306 @@ This is an automated reminder to help you manage premium payments. Please ensure
 ---
 TrustFlow360 ILIT Administration Platform
 Premium Reminder for ${data.trust_name}
+  `.trim();
+}
+
+// ============================================================================
+// REMEDIATION ALERT TEMPLATE
+// ============================================================================
+
+export function generateRemediationAlertHTML(data: RemediationAlertData): string {
+  const statusColors = {
+    healthy: '#28a745',
+    warning: '#ffc107',
+    critical: '#dc3545'
+  };
+
+  const statusColor = statusColors[data.overall_status];
+  const statusText = data.overall_status.toUpperCase();
+
+  const priorityColors = {
+    urgent: '#dc3545',
+    high: '#ff6b6b',
+    medium: '#ffc107',
+    low: '#667eea'
+  };
+
+  const severityColors = {
+    critical: '#dc3545',
+    high: '#ff6b6b',
+    medium: '#ffc107',
+    low: '#6c757d'
+  };
+
+  const checkDate = new Date(data.check_date).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  // Filter critical/high severity issues
+  const criticalIssues = data.issues.filter(i =>
+    i.severity === 'critical' || i.severity === 'high'
+  );
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Policy Health Alert - Action Required</title>
+  <style>
+    @media only screen and (max-width: 600px) {
+      .container { width: 100% !important; padding: 10px !important; }
+      .header { font-size: 20px !important; }
+    }
+  </style>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 20px 0;">
+    <tr>
+      <td align="center">
+        <table class="container" width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background-color: ${statusColor}; padding: 30px 20px; text-align: center;">
+              <p style="margin: 0 0 5px 0; color: #ffffff; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">POLICY HEALTH ALERT</p>
+              <h1 class="header" style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">Action Required</h1>
+              <p style="margin: 10px 0 0 0; color: #f0f0f0; font-size: 16px;">${data.trust_name}</p>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 30px 30px 20px 30px;">
+              <p style="margin: 0 0 20px 0; font-size: 16px;">Dear ${data.trustee_name},</p>
+
+              <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">
+                Our automated health monitoring system has detected ${criticalIssues.length === 1 ? 'an issue' : 'issues'} with the insurance policy for <strong>${data.trust_name}</strong> that ${criticalIssues.length === 1 ? 'requires' : 'require'} immediate attention.
+              </p>
+
+              <!-- Health Score Box -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: ${data.overall_status === 'critical' ? '#f8d7da' : '#fff3cd'}; border-left: 4px solid ${statusColor}; border-radius: 4px; margin: 25px 0;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="padding: 8px 0;">
+                          <span style="font-weight: 600; color: #333;">Overall Status:</span>
+                          <span style="float: right; font-weight: 700; color: ${statusColor};">${statusText}</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; border-top: 1px solid ${statusColor}33;">
+                          <span style="font-weight: 600; color: #333;">Health Score:</span>
+                          <span style="float: right; font-size: 18px; font-weight: 700; color: ${statusColor};">${data.health_score.toFixed(1)}/100</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; border-top: 1px solid ${statusColor}33;">
+                          <span style="font-weight: 600; color: #333;">Check Date:</span>
+                          <span style="float: right; color: #666;">${checkDate}</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Policy Details -->
+              <h2 style="color: #333; font-size: 18px; margin: 30px 0 15px 0; font-weight: 600;">Policy Information</h2>
+
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-radius: 4px; margin: 15px 0;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="padding: 8px 0;">
+                          <span style="font-weight: 600; color: #333;">Policy Number:</span>
+                          <span style="float: right; color: #666;">${data.policy_number}</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; border-top: 1px solid #e0e0e0;">
+                          <span style="font-weight: 600; color: #333;">Carrier:</span>
+                          <span style="float: right; color: #666;">${data.carrier}</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Issues Detected -->
+              <h2 style="color: #dc3545; font-size: 18px; margin: 30px 0 15px 0; font-weight: 600;">Issues Detected</h2>
+
+              ${criticalIssues.map(issue => `
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fff; border-left: 4px solid ${severityColors[issue.severity]}; border-radius: 4px; margin: 10px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <tr>
+                  <td style="padding: 15px;">
+                    <p style="margin: 0 0 5px 0; font-weight: 700; color: ${severityColors[issue.severity]}; text-transform: uppercase; font-size: 12px;">${issue.severity} SEVERITY</p>
+                    <p style="margin: 0; font-size: 15px; color: #333; line-height: 1.5;">${issue.description}</p>
+                  </td>
+                </tr>
+              </table>
+              `).join('')}
+
+              <!-- Remediation Actions -->
+              <h2 style="color: #333; font-size: 18px; margin: 30px 0 15px 0; font-weight: 600;">Required Actions</h2>
+
+              <p style="margin: 0 0 15px 0; font-size: 15px; color: #666;">
+                The following remediation actions have been created and assigned. Please review and complete each action by the specified due date.
+              </p>
+
+              ${data.remediation_actions.map(action => {
+                const dueDate = new Date(action.due_date).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric'
+                });
+                const urgencyLabel = action.days_until_due <= 3 ? 'URGENT' : action.days_until_due <= 7 ? 'SOON' : '';
+
+                return `
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-left: 4px solid ${priorityColors[action.priority]}; border-radius: 4px; margin: 15px 0;">
+                <tr>
+                  <td style="padding: 15px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td colspan="2">
+                          <span style="display: inline-block; padding: 3px 8px; background-color: ${priorityColors[action.priority]}; color: #ffffff; font-size: 11px; font-weight: 700; text-transform: uppercase; border-radius: 3px; margin-bottom: 8px;">${action.priority} PRIORITY</span>
+                          ${urgencyLabel ? `<span style="display: inline-block; padding: 3px 8px; background-color: #dc3545; color: #ffffff; font-size: 11px; font-weight: 700; text-transform: uppercase; border-radius: 3px; margin-left: 5px; margin-bottom: 8px;">${urgencyLabel}</span>` : ''}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td colspan="2" style="padding: 5px 0;">
+                          <p style="margin: 0; font-size: 15px; font-weight: 600; color: #333;">${action.title}</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0;">
+                          <span style="font-size: 14px; color: #666;">Due Date:</span>
+                        </td>
+                        <td style="text-align: right; padding: 8px 0;">
+                          <span style="font-size: 14px; font-weight: 600; color: ${action.days_until_due <= 3 ? '#dc3545' : '#333'};">${dueDate} (${action.days_until_due} days)</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+                `;
+              }).join('')}
+
+              <!-- Next Steps -->
+              <h3 style="color: #333; font-size: 16px; margin: 25px 0 10px 0; font-weight: 600;">Next Steps:</h3>
+
+              <ul style="margin: 0 0 20px 0; padding-left: 20px; font-size: 15px; line-height: 1.8;">
+                <li>Review each remediation action carefully</li>
+                <li>Prioritize urgent and high-priority items</li>
+                <li>Complete actions before their due dates</li>
+                <li>Update action status in TrustFlow360 as you complete them</li>
+                <li>Contact your insurance advisor if you need assistance</li>
+              </ul>
+
+              <!-- CTA Button -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin: 25px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="https://trustflow360.com/dashboard" style="display: inline-block; padding: 12px 30px; background-color: #667eea; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 15px; border-radius: 5px;">View in TrustFlow360</a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Note -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0 0 0; padding: 20px 0; border-top: 1px solid #e0e0e0;">
+                <tr>
+                  <td style="font-size: 13px; color: #666; line-height: 1.6;">
+                    <strong>Note:</strong> This is an automated alert from our AI-powered health monitoring system. The system continuously analyzes policy health based on premium payments, coverage adequacy, and compliance factors. Please take action on critical and urgent items promptly.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e0e0e0;">
+              <p style="margin: 0 0 5px 0; color: #999; font-size: 12px;">TrustFlow360 ILIT Administration Platform</p>
+              <p style="margin: 0; color: #999; font-size: 12px;">Policy Health Alert for ${data.trust_name}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
+export function generateRemediationAlertText(data: RemediationAlertData): string {
+  const statusText = data.overall_status.toUpperCase();
+  const checkDate = new Date(data.check_date).toLocaleDateString('en-US');
+
+  // Filter critical/high severity issues
+  const criticalIssues = data.issues.filter(i =>
+    i.severity === 'critical' || i.severity === 'high'
+  );
+
+  return `
+*** POLICY HEALTH ALERT ***
+ACTION REQUIRED
+
+${data.trust_name}
+
+Dear ${data.trustee_name},
+
+Our automated health monitoring system has detected ${criticalIssues.length === 1 ? 'an issue' : 'issues'} with the insurance policy for ${data.trust_name} that ${criticalIssues.length === 1 ? 'requires' : 'require'} immediate attention.
+
+HEALTH STATUS:
+- Overall Status: ${statusText}
+- Health Score: ${data.health_score.toFixed(1)}/100
+- Check Date: ${checkDate}
+
+POLICY INFORMATION:
+- Policy Number: ${data.policy_number}
+- Carrier: ${data.carrier}
+
+ISSUES DETECTED:
+${criticalIssues.map((issue, idx) => `
+${idx + 1}. [${issue.severity.toUpperCase()} SEVERITY]
+   ${issue.description}
+`).join('')}
+
+REQUIRED ACTIONS:
+The following remediation actions have been created and assigned. Please review and complete each action by the specified due date.
+
+${data.remediation_actions.map((action, idx) => {
+  const dueDate = new Date(action.due_date).toLocaleDateString('en-US');
+  const urgencyLabel = action.days_until_due <= 3 ? ' *** URGENT ***' : action.days_until_due <= 7 ? ' ** SOON **' : '';
+
+  return `
+${idx + 1}. [${action.priority.toUpperCase()} PRIORITY]${urgencyLabel}
+   ${action.title}
+   Due: ${dueDate} (${action.days_until_due} days)
+  `;
+}).join('')}
+
+NEXT STEPS:
+1. Review each remediation action carefully
+2. Prioritize urgent and high-priority items
+3. Complete actions before their due dates
+4. Update action status in TrustFlow360 as you complete them
+5. Contact your insurance advisor if you need assistance
+
+View in TrustFlow360: https://trustflow360.com/dashboard
+
+NOTE:
+This is an automated alert from our AI-powered health monitoring system. The system continuously analyzes policy health based on premium payments, coverage adequacy, and compliance factors. Please take action on critical and urgent items promptly.
+
+---
+TrustFlow360 ILIT Administration Platform
+Policy Health Alert for ${data.trust_name}
   `.trim();
 }
