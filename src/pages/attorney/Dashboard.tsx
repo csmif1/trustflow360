@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import PremiumDashboard from "@/components/PremiumDashboard";
 import AnnualTaxReport from "@/components/Reports/AnnualTaxReport";
+import PremiumPaymentSummary from "@/components/Reports/PremiumPaymentSummary";
+import AuditTrailExport from "@/components/Reports/AuditTrailExport";
 import TrustsPage from "@/components/TrustsPage";
 import DocumentUpload from './DocumentUpload';
 import CrummeyNotices from './CrummeyNotices';
@@ -549,30 +551,10 @@ export default function AttorneyDashboard() {
                 <AnnualTaxReport />
               </TabsContent>
               <TabsContent value="premium">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Premium Payment Summary</CardTitle>
-                    <CardDescription>Coming in Track B - Reporting Phase</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-gray-600">
-                      Premium payment summary reports with export functionality will be available soon.
-                    </p>
-                  </CardContent>
-                </Card>
+                <PremiumPaymentSummary />
               </TabsContent>
               <TabsContent value="audit">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Audit Trail Export</CardTitle>
-                    <CardDescription>Coming in Track B - Reporting Phase</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-gray-600">
-                      Audit trail export functionality will be available soon.
-                    </p>
-                  </CardContent>
-                </Card>
+                <AuditTrailExport />
               </TabsContent>
             </Tabs>
           </TabsContent>
