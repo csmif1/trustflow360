@@ -26,6 +26,7 @@ import PremiumDashboard from "@/components/PremiumDashboard";
 import AnnualTaxReport from "@/components/Reports/AnnualTaxReport";
 import PremiumPaymentSummary from "@/components/Reports/PremiumPaymentSummary";
 import AuditTrailExport from "@/components/Reports/AuditTrailExport";
+import GiftRequestGenerator from "@/components/GiftRequestGenerator";
 import TrustsPage from "@/components/TrustsPage";
 import DocumentUpload from './DocumentUpload';
 import CrummeyNotices from './CrummeyNotices';
@@ -440,21 +441,21 @@ export default function AttorneyDashboard() {
                       <div className="p-3 bg-success-light rounded-lg">
                         <DollarSign className="h-6 w-6 text-success" />
                       </div>
-                      Record Gift
+                      Send Gift Request
                     </CardTitle>
                     <CardDescription>
-                      Enter gift details directly
+                      Request contributions from grantors
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2 text-sm text-gray-600 mb-4">
                       <div className="flex items-center gap-2">
                         <FileText className="h-4 w-4" />
-                        <span>Quick entry form</span>
+                        <span>Auto-calculated amounts</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4" />
-                        <span>Auto-calculate shares</span>
+                        <Mail className="h-4 w-4" />
+                        <span>Email or mail tracking</span>
                       </div>
                     </div>
                     <Button
@@ -462,7 +463,7 @@ export default function AttorneyDashboard() {
                       variant="outline"
                       onClick={() => setActiveTab('trusts-policies')}
                     >
-                      Enter Gift Details
+                      Create Request
                     </Button>
                   </CardContent>
                 </Card>
@@ -509,12 +510,16 @@ export default function AttorneyDashboard() {
               <TabsList>
                 <TabsTrigger value="trusts">Trusts</TabsTrigger>
                 <TabsTrigger value="policies">Policies</TabsTrigger>
+                <TabsTrigger value="gift-requests">Gift Requests</TabsTrigger>
               </TabsList>
               <TabsContent value="trusts">
                 <TrustsPage />
               </TabsContent>
               <TabsContent value="policies">
                 <Policies />
+              </TabsContent>
+              <TabsContent value="gift-requests">
+                <GiftRequestGenerator />
               </TabsContent>
             </Tabs>
           </TabsContent>
