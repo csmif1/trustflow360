@@ -26,6 +26,7 @@ import PremiumDashboard from "@/components/PremiumDashboard";
 import AnnualTaxReport from "@/components/Reports/AnnualTaxReport";
 import PremiumPaymentSummary from "@/components/Reports/PremiumPaymentSummary";
 import AuditTrailExport from "@/components/Reports/AuditTrailExport";
+import GiftTaxSummary from "@/components/Reports/GiftTaxSummary";
 import GiftRequestGenerator from "@/components/GiftRequestGenerator";
 import TrustsPage from "@/components/TrustsPage";
 import DocumentUpload from './DocumentUpload';
@@ -553,7 +554,7 @@ export default function AttorneyDashboard() {
                 <TabsTrigger value="audit">Audit Trail</TabsTrigger>
               </TabsList>
               <TabsContent value="tax">
-                <AnnualTaxReport />
+                <GiftTaxSummary />
               </TabsContent>
               <TabsContent value="premium">
                 <PremiumPaymentSummary />
