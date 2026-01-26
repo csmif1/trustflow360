@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
 const ANNUAL_EXCLUSION_2026 = 19000;
@@ -52,15 +53,9 @@ serve(async (req) => {
           id,
           policy_number,
           annual_premium,
-          carrier_name,
-          next_premium_due,
-          trusts!inner (
-            id,
-            trust_name,
-            grantor_name,
-            grantor_email
-          ),
-          beneficiaries (id)
+          carrier,
+          next_premium_date,
+          trust_id
         `)
         .eq('id', policyId)
         .single();
@@ -72,9 +67,29 @@ serve(async (req) => {
         );
       }
 
+      // Fetch trust data separately
+      const { data: trust, error: trustError } = await supabase
+        .from('trusts')
+        .select('id, trust_name, grantor_name, grantor_email')
+        .eq('id', policy.trust_id)
+        .single();
+
+      if (trustError || !trust) {
+        return new Response(
+          JSON.stringify({ error: 'Trust not found', details: trustError?.message }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Fetch beneficiaries
+      const { data: beneficiaries, error: benError } = await supabase
+        .from('beneficiaries')
+        .select('id')
+        .eq('trust_id', policy.trust_id);
+
       // Count grantors (for now assuming 1, can be enhanced)
       const numberOfGrantors = 1;
-      const numberOfBeneficiaries = policy.beneficiaries?.length || 1;
+      const numberOfBeneficiaries = beneficiaries?.length || 1;
       const premiumAmount = policy.annual_premium || 0;
 
       // Calculate base request: Premium ÷ Number of Grantors
@@ -86,8 +101,8 @@ serve(async (req) => {
 
       // Calculate request due date (30 days before premium due)
       let requestDueDate = null;
-      if (policy.next_premium_due) {
-        const premiumDate = new Date(policy.next_premium_due);
+      if (policy.next_premium_date) {
+        const premiumDate = new Date(policy.next_premium_date);
         const dueDate = new Date(premiumDate);
         dueDate.setDate(premiumDate.getDate() - 30);
         requestDueDate = dueDate.toISOString().split('T')[0];
@@ -104,15 +119,15 @@ serve(async (req) => {
             annual_exclusion_limit: ANNUAL_EXCLUSION_2026,
             max_per_grantor: maxPerGrantor,
             needs_gift_tax_filing: needsGiftTaxFiling,
-            premium_due_date: policy.next_premium_due,
+            premium_due_date: policy.next_premium_date,
             recommended_request_due_date: requestDueDate
           },
           policy: {
             policy_number: policy.policy_number,
-            carrier_name: policy.carrier_name,
-            trust_name: policy.trusts.trust_name,
-            grantor_name: policy.trusts.grantor_name,
-            grantor_email: policy.trusts.grantor_email
+            carrier_name: policy.carrier,
+            trust_name: trust.trust_name,
+            grantor_name: trust.grantor_name,
+            grantor_email: trust.grantor_email
           }
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -123,14 +138,10 @@ serve(async (req) => {
     if (path.includes('/generate') && req.method === 'POST') {
       const body: GiftRequestData = await req.json();
 
-      // Fetch full policy and trust details
+      // Fetch policy details
       const { data: policy, error: policyError } = await supabase
         .from('insurance_policies')
-        .select(`
-          *,
-          trusts!inner (*),
-          beneficiaries (*)
-        `)
+        .select('*')
         .eq('id', body.policy_id)
         .single();
 
@@ -141,15 +152,35 @@ serve(async (req) => {
         );
       }
 
+      // Fetch trust details
+      const { data: trust, error: trustError } = await supabase
+        .from('trusts')
+        .select('*')
+        .eq('id', policy.trust_id)
+        .single();
+
+      if (trustError || !trust) {
+        return new Response(
+          JSON.stringify({ error: 'Trust not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Fetch beneficiaries
+      const { data: beneficiaries, error: benError } = await supabase
+        .from('beneficiaries')
+        .select('*')
+        .eq('trust_id', policy.trust_id);
+
       const letterHtml = generateLetterHTML({
-        trustName: policy.trusts.trust_name,
+        trustName: trust.trust_name,
         grantorName: body.grantor_name,
         policyNumber: policy.policy_number,
-        carrierName: policy.carrier_name || 'Insurance Carrier',
+        carrierName: policy.carrier || 'Insurance Carrier',
         premiumAmount: policy.annual_premium || 0,
-        premiumDueDate: body.premium_due_date || policy.next_premium_due || '',
+        premiumDueDate: body.premium_due_date || policy.next_premium_date || '',
         requestedAmount: body.amount_requested,
-        numberOfBeneficiaries: policy.beneficiaries?.length || 0,
+        numberOfBeneficiaries: beneficiaries?.length || 0,
         requestDueDate: body.request_due_date || '',
         customMessage: body.custom_message || '',
         trusteeContact: 'TrustFlow360 Admin' // Could be enhanced with actual trustee info
