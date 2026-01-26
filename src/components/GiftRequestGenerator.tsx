@@ -28,7 +28,7 @@ interface Policy {
   id: string;
   policy_number: string;
   annual_premium: number;
-  carrier_name: string;
+  carrier: string;
   next_premium_due: string;
   trusts: {
     id: string;
@@ -78,7 +78,7 @@ export default function GiftRequestGenerator() {
       // Fetch active policies
       const { data: policiesData, error: policiesError } = await supabase
         .from('insurance_policies')
-        .select('id, policy_number, annual_premium, carrier_name, next_premium_due, trust_id')
+        .select('id, policy_number, annual_premium, carrier, next_premium_due, trust_id')
         .eq('policy_status', 'active')
         .order('policy_number');
 
