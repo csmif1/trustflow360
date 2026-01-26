@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || '';
@@ -107,7 +108,7 @@ serve(async (req) => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          from: 'TrustFlow360 <noreply@trustflow360.com>',
+          from: 'TrustFlow360 <onboarding@resend.dev>',
           to: [body.assigned_to_email],
           subject: `TrustFlow360: Action Assigned - ${action.action_type}`,
           html: emailHtml
