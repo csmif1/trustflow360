@@ -29,7 +29,7 @@ interface Policy {
   policy_number: string;
   annual_premium: number;
   carrier: string;
-  next_premium_due: string;
+  next_premium_date: string;
   trusts: {
     id: string;
     trust_name: string;
@@ -78,7 +78,7 @@ export default function GiftRequestGenerator() {
       // Fetch active policies
       const { data: policiesData, error: policiesError } = await supabase
         .from('insurance_policies')
-        .select('id, policy_number, annual_premium, carrier, next_premium_due, trust_id')
+        .select('id, policy_number, annual_premium, carrier, next_premium_date, trust_id')
         .eq('policy_status', 'active')
         .order('policy_number');
 
@@ -196,7 +196,7 @@ export default function GiftRequestGenerator() {
           grantor_name: selectedPolicy.trusts.grantor_name,
           grantor_email: selectedPolicy.trusts.grantor_email,
           amount_requested: parseFloat(requestedAmount),
-          premium_due_date: selectedPolicy.next_premium_due,
+          premium_due_date: selectedPolicy.next_premium_date,
           request_due_date: requestDueDate,
           custom_message: customMessage
         })
