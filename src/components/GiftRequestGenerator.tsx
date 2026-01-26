@@ -75,26 +75,46 @@ export default function GiftRequestGenerator() {
 
   const fetchPolicies = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch active policies
+      const { data: policiesData, error: policiesError } = await supabase
         .from('insurance_policies')
-        .select(`
-          id,
-          policy_number,
-          annual_premium,
-          carrier_name,
-          next_premium_due,
-          trusts!inner (
-            id,
-            trust_name,
-            grantor_name,
-            grantor_email
-          )
-        `)
+        .select('id, policy_number, annual_premium, carrier_name, next_premium_due, trust_id')
         .eq('policy_status', 'active')
         .order('policy_number');
 
-      if (error) throw error;
-      setPolicies(data || []);
+      if (policiesError) throw policiesError;
+
+      if (!policiesData || policiesData.length === 0) {
+        setPolicies([]);
+        return;
+      }
+
+      // Get unique trust IDs
+      const trustIds = [...new Set(policiesData.map(p => p.trust_id))];
+
+      // Fetch trust data for these policies
+      const { data: trustsData, error: trustsError } = await supabase
+        .from('trusts')
+        .select('id, trust_name, grantor_name, grantor_email')
+        .in('id', trustIds);
+
+      if (trustsError) throw trustsError;
+
+      // Create a map of trust data by ID for quick lookup
+      const trustsMap = new Map(trustsData?.map(t => [t.id, t]) || []);
+
+      // Merge policy and trust data
+      const enrichedPolicies = policiesData.map(policy => ({
+        ...policy,
+        trusts: trustsMap.get(policy.trust_id) || {
+          id: policy.trust_id,
+          trust_name: 'Unknown Trust',
+          grantor_name: 'Unknown',
+          grantor_email: ''
+        }
+      }));
+
+      setPolicies(enrichedPolicies);
     } catch (err: any) {
       console.error('Error fetching policies:', err);
       setError('Failed to load policies');
