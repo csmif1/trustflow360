@@ -247,7 +247,7 @@ serve(async (req) => {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              from: 'TrustFlow360 <noreply@trustflow360.com>',
+              from: 'TrustFlow360 <onboarding@resend.dev>',
               to: [request.grantor_email],
               subject: `Gift Contribution Request - ${request.grantor_name}`,
               html: request.letter_html
