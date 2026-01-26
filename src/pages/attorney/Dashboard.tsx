@@ -106,7 +106,7 @@ export default function AttorneyDashboard() {
       const { count: trustCount } = await supabase
         .from('trusts')
         .select('*', { count: 'exact', head: true })
-        .eq('status', 'Active');
+        .eq('status', 'active');
 
       // Fetch policy count
       const { count: policyCount } = await supabase
@@ -129,15 +129,23 @@ export default function AttorneyDashboard() {
 
       const totalGifts = giftsData?.reduce((sum, gift) => sum + (gift.amount || 0), 0) || 0;
 
-      // Fetch policy health checks
+      // Fetch policy health checks - get latest check per policy
       const { data: healthChecks } = await supabase
         .from('policy_health_checks')
-        .select('overall_status')
-        .order('check_date', { ascending: false })
-        .limit(100);
+        .select('policy_id, overall_status, check_date')
+        .order('check_date', { ascending: false });
 
-      const criticalCount = healthChecks?.filter(h => h.overall_status === 'critical').length || 0;
-      const healthyCount = healthChecks?.filter(h => h.overall_status === 'healthy').length || 0;
+      // Get unique policies with their latest health check
+      const latestHealthByPolicy = new Map();
+      healthChecks?.forEach(check => {
+        if (!latestHealthByPolicy.has(check.policy_id)) {
+          latestHealthByPolicy.set(check.policy_id, check.overall_status);
+        }
+      });
+
+      const latestHealthStatuses = Array.from(latestHealthByPolicy.values());
+      const criticalCount = latestHealthStatuses.filter(status => status === 'critical').length;
+      const healthyCount = latestHealthStatuses.filter(status => status === 'healthy').length;
 
       // Calculate compliance score
       const complianceScore = calculateComplianceScore(
