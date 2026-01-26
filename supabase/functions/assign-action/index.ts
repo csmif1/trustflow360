@@ -58,7 +58,7 @@ serve(async (req) => {
         policy_id,
         insurance_policies!inner (
           policy_number,
-          carrier_name,
+          carrier,
           trusts!inner (
             trust_name
           )
@@ -104,7 +104,7 @@ serve(async (req) => {
         description: action.description,
         dueDate: action.due_date,
         policyNumber: action.insurance_policies.policy_number,
-        carrierName: action.insurance_policies.carrier_name,
+        carrierName: action.insurance_policies.carrier,
         trustName: action.insurance_policies.trusts.trust_name,
         assigneeName: body.assigned_to_name
       });
