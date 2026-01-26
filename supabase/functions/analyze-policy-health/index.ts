@@ -7,6 +7,7 @@ import { generateRemediationAlertHTML, generateRemediationAlertText } from '../_
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 }
 
 interface HealthCheckInput {
@@ -766,7 +767,7 @@ serve(async (req) => {
             const textContent = generateRemediationAlertText(emailData);
 
             const result = await resend.emails.send({
-              from: 'TrustFlow360 <alerts@trustflow360.com>',
+              from: 'TrustFlow360 <onboarding@resend.dev>',
               to: [policyData.trust.trustee_email],
               subject: `[${overallStatus.toUpperCase()}] Policy Health Alert - ${policyData.trust.trust_name}`,
               html: htmlContent,
