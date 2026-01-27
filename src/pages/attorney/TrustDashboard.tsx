@@ -271,11 +271,11 @@ const TrustDashboard: React.FC = () => {
       <div className="container mx-auto p-6">
         <Button
           variant="outline"
-          onClick={() => navigate('/trusts')}
+          onClick={() => navigate('/')}
           className="mb-4"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Trusts
+          Back to Dashboard
         </Button>
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -292,11 +292,11 @@ const TrustDashboard: React.FC = () => {
       {/* Back Button */}
       <Button
         variant="outline"
-        onClick={() => navigate('/trusts')}
+        onClick={() => navigate('/')}
         className="mb-2"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Trusts
+        Back to Dashboard
       </Button>
 
       {/* Trust Header */}

@@ -116,8 +116,8 @@ export default function Dashboard() {
                 Auto-calculate beneficiary shares
               </p>
             </div>
-            <Button 
-              onClick={() => window.location.href = '/trusts'}
+            <Button
+              onClick={() => window.location.href = '/'}
               className="w-full bg-green-600 hover:bg-green-700"
             >
               Enter Gift Details
@@ -159,7 +159,7 @@ export default function Dashboard() {
         <button className="px-6 py-2 bg-white text-blue-600 rounded-lg font-medium">
           Quick Actions
         </button>
-        <button onClick={() => window.location.href = '/trusts'} className="px-6 py-2 hover:bg-blue-700 rounded-lg">
+        <button onClick={() => window.location.href = '/'} className="px-6 py-2 hover:bg-blue-700 rounded-lg">
           Trusts
         </button>
         <button onClick={() => window.location.href = '/documents'} className="px-6 py-2 hover:bg-blue-700 rounded-lg">
