@@ -469,7 +469,6 @@ export default function AttorneyDashboard() {
                     </div>
                     <Button
                       className="w-full button-lift"
-                      variant="outline"
                       onClick={() => setActiveTab('trusts-policies')}
                     >
                       Create Request
@@ -502,7 +501,6 @@ export default function AttorneyDashboard() {
                     </div>
                     <Button
                       className="w-full button-lift"
-                      variant="secondary"
                       onClick={() => setActiveTab('compliance')}
                     >
                       Review & Send
