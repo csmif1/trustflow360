@@ -55,12 +55,14 @@ serve(async (req) => {
           donor_email,
           gift_date,
           amount,
-          beneficiaries!inner (
-            name
-          ),
-          trusts!inner (
+          ilit_id,
+          ilits!inner (
             id,
-            trust_name
+            trust_id,
+            trusts!inner (
+              id,
+              trust_name
+            )
           )
         `);
 
@@ -76,7 +78,7 @@ serve(async (req) => {
       }
 
       if (trustId) {
-        query = query.eq('trust_id', trustId);
+        query = query.eq('ilits.trust_id', trustId);
       }
 
       const { data: gifts, error } = await query;
@@ -112,7 +114,8 @@ serve(async (req) => {
 
       gifts.forEach((gift: any) => {
         const giftYear = new Date(gift.gift_date).getFullYear();
-        const key = `${gift.donor_name}|${gift.beneficiaries.name}|${gift.trusts.trust_name}|${giftYear}`;
+        const trustName = gift.ilits.trusts.trust_name;
+        const key = `${gift.donor_name}|${trustName}|${giftYear}`;
 
         if (groupedGifts.has(key)) {
           const existing = groupedGifts.get(key)!;
@@ -122,8 +125,8 @@ serve(async (req) => {
           groupedGifts.set(key, {
             donor_name: gift.donor_name,
             donor_email: gift.donor_email,
-            beneficiary_name: gift.beneficiaries.name,
-            trust_name: gift.trusts.trust_name,
+            beneficiary_name: 'N/A',
+            trust_name: trustName,
             tax_year: giftYear,
             total_gifts: parseFloat(gift.amount),
             gift_count: 1
@@ -186,12 +189,14 @@ serve(async (req) => {
           donor_email,
           gift_date,
           amount,
-          beneficiaries!inner (
-            name
-          ),
-          trusts!inner (
+          ilit_id,
+          ilits!inner (
             id,
-            trust_name
+            trust_id,
+            trusts!inner (
+              id,
+              trust_name
+            )
           )
         `);
 
@@ -206,7 +211,7 @@ serve(async (req) => {
       }
 
       if (trustId) {
-        query = query.eq('trust_id', trustId);
+        query = query.eq('ilits.trust_id', trustId);
       }
 
       const { data: gifts, error } = await query;
@@ -237,7 +242,8 @@ serve(async (req) => {
 
       gifts.forEach((gift: any) => {
         const giftYear = new Date(gift.gift_date).getFullYear();
-        const key = `${gift.donor_name}|${gift.beneficiaries.name}|${gift.trusts.trust_name}|${giftYear}`;
+        const trustName = gift.ilits.trusts.trust_name;
+        const key = `${gift.donor_name}|${trustName}|${giftYear}`;
 
         if (groupedGifts.has(key)) {
           const existing = groupedGifts.get(key)!;
@@ -247,8 +253,8 @@ serve(async (req) => {
           groupedGifts.set(key, {
             donor_name: gift.donor_name,
             donor_email: gift.donor_email,
-            beneficiary_name: gift.beneficiaries.name,
-            trust_name: gift.trusts.trust_name,
+            beneficiary_name: 'N/A',
+            trust_name: trustName,
             tax_year: giftYear,
             total_gifts: parseFloat(gift.amount),
             gift_count: 1
