@@ -236,7 +236,7 @@ export default function AttorneyDashboard() {
             <h1 className="text-4xl font-bold text-primary-900 mb-2">
               TrustFlow360
             </h1>
-            <p className="text-gray-600 italic">See every risk. Never miss a deadline. AI-powered ILIT Administration</p>
+            <p className="text-gray-600 italic">See every risk. Never miss a deadline. AI-Powered ILIT Administration</p>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-sm">
