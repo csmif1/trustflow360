@@ -184,7 +184,7 @@ export default function AuditTrailExport() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-success">
-                {summary.success_rate.toFixed(1)}%
+                {(summary.success_rate ?? 0).toFixed(1)}%
               </div>
               <p className="text-sm text-gray-500 mt-1">
                 Successful operations
